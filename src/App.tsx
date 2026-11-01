@@ -6,6 +6,7 @@ import { tv } from './lib/bridge'
 import { currentElement, focus, pushBack, startFocusWatcher } from './lib/focus'
 import { startInput } from './lib/input'
 import { startLibrary, useLibrary } from './lib/library'
+import { startPointerWatch } from './lib/pointer'
 import { getPlace, goTo, setPlace, usePlace, type Screen } from './lib/place'
 import { Browse } from './screens/Browse'
 import { Home } from './screens/Home'
@@ -72,10 +73,12 @@ export default function App() {
     startLibrary()
     const stopInput = startInput()
     const stopWatch = startFocusWatcher()
+    const stopPointer = startPointerWatch()
     const popBack = pushBack(defaultBack)
     return () => {
       stopInput()
       stopWatch()
+      stopPointer()
       popBack()
     }
   }, [])

@@ -21,7 +21,19 @@ function Option({ id, label, onSelect }: DialogOption & { id: string }) {
   )
 }
 
-export function Dialog({ title, message, options, onClose }: { title: string; message?: string; options: DialogOption[]; onClose: () => void }) {
+export function Dialog({
+  title,
+  message,
+  options,
+  onClose,
+  children,
+}: {
+  title: string
+  message?: string
+  options: DialogOption[]
+  onClose: () => void
+  children?: React.ReactNode
+}) {
   useFocusReturn()
   useEffect(() => pushBack(() => (onClose(), true)), [onClose])
   useEffect(() => {
@@ -32,6 +44,7 @@ export function Dialog({ title, message, options, onClose }: { title: string; me
       <div className="dialog__panel">
         <h2 className="dialog__title">{title}</h2>
         {message && <p className="muted">{message}</p>}
+        {children}
         <div className="list">
           {options.map((o, i) => (
             <Option key={o.label} id={`dialog:${i}`} {...o} />

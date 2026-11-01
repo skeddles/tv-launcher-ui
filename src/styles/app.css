@@ -13,7 +13,7 @@ body,
   color: var(--text);
   font-family: var(--font);
   -webkit-font-smoothing: antialiased;
-  cursor: none; /* controller-only UI */
+  cursor: default;
 }
 
 button {
@@ -543,4 +543,25 @@ button {
   text-align: right;
   color: var(--text);
   font-variant-numeric: tabular-nums;
+}
+
+/* The pointer shows only while the mouse is moving (lib/pointer.ts). */
+html:not(.pointer-active),
+html:not(.pointer-active) * {
+  cursor: none !important;
+}
+
+/* ---------- Pairing code ---------- */
+
+.pairing-code {
+  display: block;
+  margin: 8px 0 24px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  background: #0b0c0e;
+  font: 600 44px/1.2 ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  letter-spacing: 0.08em;
+  text-align: center;
+  user-select: all;
+  cursor: text;
 }
