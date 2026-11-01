@@ -52,12 +52,12 @@ export default function App() {
   const screen = usePlace((p) => p.screen)
   const notice = useLibrary().notice
   // Set while another app is waiting for text (Y in mouse mode).
-  const [typingFor, setTypingFor] = useState<string | null>(null)
+  const [typingFor, setTypingFor] = useState<{ label: string; password: boolean } | null>(null)
 
   useEffect(
     () =>
       tv.onEvent((e) => {
-        if (e.type === 'keyboard-request') setTypingFor(e.label)
+        if (e.type === 'keyboard-request') setTypingFor({ label: e.label, password: Boolean(e.password) })
         if (e.type === 'keyboard-closed') setTypingFor(null)
       }),
     [],
@@ -81,7 +81,9 @@ export default function App() {
       <main className="main" data-scroll key={screen}>
         <ScreenView screen={screen} />
       </main>
-      {typingFor && <TypingScreen label={typingFor} onClose={() => setTypingFor(null)} />}
+      {typingFor && (
+        <TypingScreen label={typingFor.label} password={typingFor.password} onClose={() => setTypingFor(null)} />
+      )}
       {notice && (
         <div className="toast" role="status">
           {notice}

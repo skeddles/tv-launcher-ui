@@ -46,7 +46,7 @@ export type ShellEvent =
   | { type: 'install-progress'; appId: string; percent: number }
   | { type: 'notice'; message: string }
   // In mouse mode the controller's Y asks for the keyboard to type into another app.
-  | { type: 'keyboard-request'; label: string }
+  | { type: 'keyboard-request'; label: string; password?: boolean }
   | { type: 'keyboard-closed' }
   | { type: 'mouse-mode'; on: boolean; label: string | null }
 
@@ -86,7 +86,8 @@ let mockScale = 1.5
 
 // Dev helper: in a browser, `__tvMock.keyboard('Firefox')` opens the typing screen.
 ;(window as unknown as { __tvMock: unknown }).__tvMock = {
-  keyboard: (label = 'Firefox') => mockListeners.forEach((cb) => cb({ type: 'keyboard-request', label })),
+  keyboard: (label = 'Firefox', password = false) =>
+    mockListeners.forEach((cb) => cb({ type: 'keyboard-request', label, password })),
 }
 
 const mock: TvBridge = {
