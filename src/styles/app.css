@@ -565,3 +565,12 @@ html:not(.pointer-active) * {
   user-select: all;
   cursor: text;
 }
+
+/* A logo filling the tile (streaming services), like a TV's home screen */
+.tile__logo {
+  position: absolute;
+  inset: 22% 14%;
+  width: 72%;
+  height: 56%;
+  object-fit: contain;
+}

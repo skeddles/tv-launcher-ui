@@ -15,6 +15,15 @@ export interface CatalogItem {
   needs?: string // Flatpak app id
   image?: string
   icon?: string
+  // A logo filling the tile (Roku style), from Wikimedia Commons: the file name of
+  // the service's current logo on its Wikidata entry (property P154). The tile's
+  // `color` is the background behind it.
+  logo?: string
+}
+
+/** A Commons file as a PNG of the given width (Commons renders SVGs). */
+export function commonsImage(file: string, width = 640): string {
+  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=${width}`
 }
 
 // DRM services (Netflix, Disney+, Prime Video) open in Google Chrome in kiosk
@@ -22,12 +31,59 @@ export interface CatalogItem {
 const chrome = (url: string): LaunchTarget => ({ kind: 'chrome', url })
 
 export const streaming: CatalogItem[] = [
-  { id: 'netflix', title: 'Netflix', color: '#5A1216', tags: ['movies', 'tv'], launch: chrome('https://www.netflix.com/browse'), needs: 'com.google.Chrome' },
-  { id: 'youtube', title: 'YouTube', color: '#4A1A1A', tags: ['video', 'tv'], launch: { kind: 'flatpak', appId: 'rocks.shy.VacuumTube' }, needs: 'rocks.shy.VacuumTube' },
-  { id: 'plex', title: 'Plex', color: '#3D3215', tags: ['movies', 'tv'], launch: { kind: 'flatpak', appId: 'tv.plex.PlexHTPC' }, needs: 'tv.plex.PlexHTPC' },
-  { id: 'disney', title: 'Disney+', color: '#14284A', tags: ['movies', 'tv'], launch: chrome('https://www.disneyplus.com/'), needs: 'com.google.Chrome' },
-  { id: 'prime', title: 'Prime Video', color: '#12304A', tags: ['movies', 'tv'], launch: chrome('https://www.primevideo.com/'), needs: 'com.google.Chrome' },
-  { id: 'twitch', title: 'Twitch', color: '#2E1F4A', tags: ['video'], launch: { kind: 'web', url: 'https://www.twitch.tv/' } },
+  {
+    id: 'netflix',
+    title: 'Netflix',
+    color: '#000000',
+    logo: 'Netflix 2015 logo.svg',
+    tags: ['movies', 'tv'],
+    launch: chrome('https://www.netflix.com/browse'),
+    needs: 'com.google.Chrome',
+  },
+  {
+    id: 'youtube',
+    title: 'YouTube',
+    color: '#FFFFFF',
+    logo: 'YouTube 2024.svg',
+    tags: ['video', 'tv'],
+    launch: { kind: 'flatpak', appId: 'rocks.shy.VacuumTube' },
+    needs: 'rocks.shy.VacuumTube',
+  },
+  {
+    id: 'plex',
+    title: 'Plex',
+    color: '#1F1F1F',
+    logo: 'Plex logo 2022.svg',
+    tags: ['movies', 'tv'],
+    launch: { kind: 'flatpak', appId: 'tv.plex.PlexHTPC' },
+    needs: 'tv.plex.PlexHTPC',
+  },
+  {
+    id: 'disney',
+    title: 'Disney+',
+    color: '#0B1631',
+    logo: 'Disney+ 2024.svg',
+    tags: ['movies', 'tv'],
+    launch: chrome('https://www.disneyplus.com/'),
+    needs: 'com.google.Chrome',
+  },
+  {
+    id: 'prime',
+    title: 'Prime Video',
+    color: '#0F171E',
+    logo: 'Prime Video logo (2024).svg',
+    tags: ['movies', 'tv'],
+    launch: chrome('https://www.primevideo.com/'),
+    needs: 'com.google.Chrome',
+  },
+  {
+    id: 'twitch',
+    title: 'Twitch',
+    color: '#FFFFFF',
+    logo: 'Twitch logo 2019.svg',
+    tags: ['video'],
+    launch: { kind: 'web', url: 'https://www.twitch.tv/' },
+  },
 ]
 
 export const steamBigPicture: CatalogItem = {

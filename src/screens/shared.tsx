@@ -1,3 +1,4 @@
+import { commonsImage } from '../data/catalog'
 import { Row } from '../components/Row'
 import { Tile } from '../components/Tile'
 import { activate, useLibrary, type TileModel } from '../lib/library'
@@ -31,6 +32,7 @@ export function TileRow({
             color={t.color}
             image={t.image}
             icon={t.icon}
+            logo={t.logo ? commonsImage(t.logo) : undefined}
             badge={progress != null ? 'Installing' : missing ? 'Install' : undefined}
             progress={progress}
             isDefault={first && i === 0}

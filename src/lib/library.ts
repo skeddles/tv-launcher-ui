@@ -15,6 +15,7 @@ export interface TileModel {
   needs?: string
   image?: string
   icon?: string
+  logo?: string // Wikimedia Commons file name (see catalog.ts)
   kind: 'service' | 'app' | 'game'
 }
 
