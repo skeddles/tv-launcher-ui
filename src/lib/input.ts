@@ -5,6 +5,7 @@
 // Arrow keys, Enter and Escape/Backspace do the same for testing with a keyboard.
 
 import { back, move, select, type Direction } from './focus'
+import { controllerPaused } from './appfront'
 import { goTo } from './place'
 import { openMenuForFocused } from './tileMenu'
 
@@ -100,6 +101,14 @@ export function startInput(): () => void {
       if (x < -STICK_THRESHOLD) pressed.add('left')
       if (y > STICK_THRESHOLD) pressed.add('down')
       if (y < -STICK_THRESHOLD) pressed.add('up')
+    }
+    if (controllerPaused()) {
+      // An app is in front and these presses are for it. Count them as held, so
+      // a button still down when the launcher comes back doesn't fire there.
+      for (const action of pressed) if (!held.has(action)) held.set(action, { since: now, lastFire: now })
+      for (const action of [...held.keys()]) if (!pressed.has(action)) held.delete(action)
+      raf = requestAnimationFrame(poll)
+      return
     }
     for (const action of pressed) {
       const repeatable = action === 'up' || action === 'down' || action === 'left' || action === 'right'

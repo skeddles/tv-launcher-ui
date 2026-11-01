@@ -6,6 +6,7 @@ import { TypingScreen } from './components/TypingScreen'
 import { tv } from './lib/bridge'
 import { currentElement, focus, pushBack, startFocusWatcher } from './lib/focus'
 import { startInput } from './lib/input'
+import { markAppOpened, startAppFront } from './lib/appfront'
 import { startLibrary, useLibrary } from './lib/library'
 import { startPointerWatch } from './lib/pointer'
 import { getPlace, goTo, setPlace, usePlace, type Screen } from './lib/place'
@@ -71,6 +72,7 @@ export default function App() {
   )
 
   useEffect(() => {
+    startAppFront()
     startLibrary()
     const stopInput = startInput()
     const stopWatch = startFocusWatcher()
@@ -99,7 +101,7 @@ export default function App() {
               label: 'Resume',
               onSelect: () => {
                 setRunning(null)
-                void tv.resumeApp()
+                void tv.resumeApp().then((back) => back && markAppOpened())
               },
             },
             {

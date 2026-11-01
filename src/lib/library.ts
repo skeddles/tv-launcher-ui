@@ -1,6 +1,7 @@
 // Everything the launcher can open: built-in services, installed Flatpaks and
 // Steam games, plus install progress. Module-level so it survives hot updates.
 
+import { markAppOpened } from './appfront'
 import { useSyncExternalStore } from 'react'
 import { tv, type InstalledFlatpak, type LaunchTarget, type SteamGame } from './bridge'
 import { colorFor, hiddenApps, steamBigPicture, streaming, type Tag } from '../data/catalog'
@@ -95,6 +96,7 @@ export async function activate(tile: TileModel) {
   markRecent(tile.id)
   try {
     await tv.launch(tile.launch, tile.title)
+    markAppOpened()
   } catch (e) {
     notify(`Couldn't open ${tile.title}: ${String(e)}`)
   }
