@@ -49,6 +49,7 @@ export type ShellEvent =
   | { type: 'keyboard-request'; label: string; password?: boolean }
   | { type: 'keyboard-closed' }
   | { type: 'mouse-mode'; on: boolean; label: string | null }
+  | { type: 'volume'; volume: number | null; muted: boolean }
 
 export interface DisplaySettings {
   scale: number // how big other apps look; the launcher itself stays the same
@@ -72,6 +73,10 @@ export interface TvBridge {
   setDisplay(opts: { scale: number }): Promise<{ scale: number }>
   /** Forget per-app mouse mode choices. */
   resetInputPrefs(): Promise<void>
+  /** System volume in percent (null if unknown). */
+  getVolume(): Promise<{ volume: number | null; muted: boolean }>
+  /** One 5% step up (+1) or down (-1). */
+  changeVolume(step: 1 | -1): Promise<{ volume: number | null; muted: boolean }>
   onEvent(cb: (e: ShellEvent) => void): () => void
 }
 
@@ -83,6 +88,7 @@ declare global {
 
 const mockListeners = new Set<(e: ShellEvent) => void>()
 let mockScale = 1.5
+let mockVolume = 100
 
 // Dev helper: in a browser, `__tvMock.keyboard('Firefox')` opens the typing screen.
 ;(window as unknown as { __tvMock: unknown }).__tvMock = {
@@ -160,6 +166,14 @@ const mock: TvBridge = {
     return { scale }
   },
   async resetInputPrefs() {},
+  async getVolume() {
+    return { volume: mockVolume, muted: false }
+  },
+  async changeVolume(step) {
+    mockVolume = Math.max(0, Math.min(100, mockVolume + step * 5))
+    mockListeners.forEach((cb) => cb({ type: 'volume', volume: mockVolume, muted: false }))
+    return { volume: mockVolume, muted: false }
+  },
   onEvent(cb) {
     mockListeners.add(cb)
     return () => mockListeners.delete(cb)

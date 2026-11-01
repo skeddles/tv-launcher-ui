@@ -509,3 +509,31 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ---------- Volume row ---------- */
+
+.volume {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.volume__bar {
+  width: 240px;
+  height: 8px;
+  border-radius: 4px;
+  background: #3a404a;
+  overflow: hidden;
+}
+
+.volume__fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.volume__value {
+  min-width: 64px;
+  text-align: right;
+  color: var(--text);
+}

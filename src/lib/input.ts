@@ -80,6 +80,8 @@ export function startInput(): () => void {
     const pressed = new Set<Action>()
     for (const pad of navigator.getGamepads?.() ?? []) {
       if (!pad) continue
+      // View held: the D-pad changes the volume (handled by the shell), so don't navigate.
+      if (pad.buttons[8]?.pressed) continue
       for (const [index, action] of BUTTONS) {
         if (pad.buttons[index]?.pressed) pressed.add(action)
       }

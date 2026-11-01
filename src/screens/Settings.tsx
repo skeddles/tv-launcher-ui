@@ -5,6 +5,8 @@ import { accents } from '../data/catalog'
 import { tv, type DisplaySettings, type SystemInfo } from '../lib/bridge'
 import { notify } from '../lib/library'
 import { useFocused } from '../lib/focus'
+import { interceptInput } from '../lib/input'
+import { getPlace } from '../lib/place'
 import { setPrefs, usePrefs } from '../lib/prefs'
 
 function Item({ id, label, value, onSelect, isDefault }: { id: string; label: string; value?: React.ReactNode; onSelect: () => void; isDefault?: boolean }) {
@@ -31,11 +33,28 @@ export function Settings() {
   const [info, setInfo] = useState<SystemInfo | null>(null)
   const [confirm, setConfirm] = useState<Confirm>(null)
   const [disp, setDisp] = useState<DisplaySettings | null>(null)
+  const [volume, setVolume] = useState<number | null>(null)
   const close = useCallback(() => setConfirm(null), [])
 
   useEffect(() => {
     tv.systemInfo().then(setInfo).catch(() => setInfo(null))
     tv.getDisplay().then(setDisp).catch(() => setDisp(null))
+    tv.getVolume()
+      .then((v) => setVolume(v.volume))
+      .catch(() => setVolume(null))
+    const stopEvents = tv.onEvent((e) => {
+      if (e.type === 'volume') setVolume(e.volume)
+    })
+    // On the Volume row, left/right change the volume like a TV's volume bar.
+    const stopKeys = interceptInput((a) => {
+      if ((a !== 'left' && a !== 'right') || getPlace().focusId !== 'settings:volume') return false
+      void tv.changeVolume(a === 'right' ? 1 : -1)
+      return true
+    })
+    return () => {
+      stopEvents()
+      stopKeys()
+    }
   }, [])
 
   const nextScale = async () => {
@@ -65,6 +84,21 @@ export function Settings() {
               {accents.map((c) => (
                 <span key={c} className={`swatch${c === accent ? ' swatch--on' : ''}`} style={{ background: c }} />
               ))}
+            </span>
+          }
+        />
+        <Item
+          id="settings:volume"
+          label="Volume"
+          onSelect={() => void tv.changeVolume(1)}
+          value={
+            <span className="volume" aria-label={`Volume ${volume ?? ''}%`}>
+              <span aria-hidden="true">◀</span>
+              <span className="volume__bar" aria-hidden="true">
+                <span className="volume__fill" style={{ width: `${volume ?? 0}%` }} />
+              </span>
+              <span className="volume__value">{volume == null ? '…' : `${volume}%`}</span>
+              <span aria-hidden="true">▶</span>
             </span>
           }
         />
@@ -113,6 +147,8 @@ export function Settings() {
           <dd>Enter / Escape</dd>
           <dt>LB / RB</dt>
           <dd>Back / Forward</dd>
+          <dt>View + D-pad ↑↓</dt>
+          <dd>Volume (anywhere, also in the launcher)</dd>
         </dl>
       </section>
 

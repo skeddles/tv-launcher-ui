@@ -57,6 +57,7 @@ export function startLibrary() {
   tv.onEvent((e) => {
     if (e.type === 'install-progress') set({ installing: { ...state.installing, [e.appId]: e.percent } })
     if (e.type === 'notice') notify(e.message)
+    if (e.type === 'volume' && e.volume != null) notify(`Volume ${e.volume}%`)
     if (e.type === 'app-exited' || e.type === 'web-closed') void refreshLibrary()
   })
 }
