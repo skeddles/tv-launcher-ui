@@ -1,0 +1,38 @@
+name: Check and publish to TV
+
+# Every push to main is linted and built. Only commits that pass are copied to
+# the `tv` branch, which is what the TV pulls. A broken commit never reaches it.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: tv-publish
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+      - name: Mark this commit safe for the TV
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: git push --force origin "${GITHUB_SHA}:refs/heads/tv"

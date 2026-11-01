@@ -1,0 +1,27 @@
+/* Design values from the TV Launcher design (1920x1080). Change these to restyle
+   the whole launcher; CSS edits hot-swap on the TV without a reload. */
+:root {
+  --bg: #111316;
+  --rail-bg: #0b0c0e;
+  --text: #e8eaed;
+  --text-secondary: #a9aeb6;
+  --icon-inactive: #8a9099;
+  --accent: #4f8ef7; /* overridden from Settings */
+  --tile-title: #ffffff;
+  --progress-track: #00000059;
+  --focus-ring: #ffffff;
+
+  --font: 'Inter Variable', Inter, system-ui, sans-serif;
+
+  --rail-width: 80px;
+  --main-pad-top: 48px;
+  --main-pad-x: 64px;
+  --section-gap: 36px;
+  --row-heading-gap: 14px;
+  --tile-gap: 24px;
+  --tile-columns: 6;
+  --tile-radius: 12px;
+  --tile-pad: 18px;
+  --focus-width: 4px;
+  --focus-offset: 4px;
+}

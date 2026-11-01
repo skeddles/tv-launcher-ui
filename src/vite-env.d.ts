@@ -1,0 +1,4 @@
+/// <reference types="vite/client" />
+interface ImportMetaEnv {
+  readonly VITE_UI_COMMIT?: string
+}

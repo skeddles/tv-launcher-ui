@@ -1,0 +1,124 @@
+// Controller and keyboard input -> navigation actions.
+// Xbox One controller via the browser Gamepad API ("standard" mapping):
+//   A = select, B = back, D-pad / left stick = move, Y = search shortcut.
+// Arrow keys, Enter and Escape/Backspace do the same for testing with a keyboard.
+
+import { back, move, select, type Direction } from './focus'
+import { goTo } from './place'
+
+const REPEAT_DELAY = 380
+const REPEAT_RATE = 110
+const STICK_THRESHOLD = 0.55
+
+export type Action = Direction | 'select' | 'back' | 'search' | 'x'
+
+// Listeners can intercept raw actions before navigation (e.g. the keyboard's
+// shortcuts). Return true to consume.
+const interceptors: Array<(a: Action) => boolean> = []
+
+export function interceptInput(fn: (a: Action) => boolean) {
+  interceptors.push(fn)
+  return () => {
+    const i = interceptors.indexOf(fn)
+    if (i >= 0) interceptors.splice(i, 1)
+  }
+}
+
+function dispatch(action: Action) {
+  for (let i = interceptors.length - 1; i >= 0; i--) if (interceptors[i](action)) return
+  switch (action) {
+    case 'select':
+      select()
+      break
+    case 'back':
+      back()
+      break
+    case 'search':
+      goTo('search')
+      break
+    case 'x':
+      break // only used by the on-screen keyboard (delete)
+    default:
+      move(action)
+  }
+}
+
+const BUTTONS: Array<[number, Action]> = [
+  [0, 'select'], // A
+  [1, 'back'], // B
+  [2, 'x'], // X
+  [3, 'search'], // Y
+  [12, 'up'],
+  [13, 'down'],
+  [14, 'left'],
+  [15, 'right'],
+]
+
+interface HeldState {
+  since: number
+  lastFire: number
+}
+
+export function startInput(): () => void {
+  const held = new Map<Action, HeldState>()
+  let raf = 0
+
+  function press(action: Action, now: number, repeatable: boolean) {
+    const h = held.get(action)
+    if (!h) {
+      held.set(action, { since: now, lastFire: now })
+      dispatch(action)
+      return
+    }
+    if (repeatable && now - h.since > REPEAT_DELAY && now - h.lastFire > REPEAT_RATE) {
+      h.lastFire = now
+      dispatch(action)
+    }
+  }
+
+  function poll(now: number) {
+    const pressed = new Set<Action>()
+    for (const pad of navigator.getGamepads?.() ?? []) {
+      if (!pad) continue
+      for (const [index, action] of BUTTONS) {
+        if (pad.buttons[index]?.pressed) pressed.add(action)
+      }
+      const [x = 0, y = 0] = pad.axes
+      if (x > STICK_THRESHOLD) pressed.add('right')
+      if (x < -STICK_THRESHOLD) pressed.add('left')
+      if (y > STICK_THRESHOLD) pressed.add('down')
+      if (y < -STICK_THRESHOLD) pressed.add('up')
+    }
+    for (const action of pressed) {
+      const repeatable = action === 'up' || action === 'down' || action === 'left' || action === 'right'
+      press(action, now, repeatable)
+    }
+    for (const action of [...held.keys()]) if (!pressed.has(action)) held.delete(action)
+    raf = requestAnimationFrame(poll)
+  }
+  raf = requestAnimationFrame(poll)
+
+  const KEYS: Record<string, Action> = {
+    ArrowUp: 'up',
+    ArrowDown: 'down',
+    ArrowLeft: 'left',
+    ArrowRight: 'right',
+    Enter: 'select',
+    ' ': 'select',
+    Escape: 'back',
+    Backspace: 'back',
+    BrowserBack: 'back',
+  }
+  function onKey(e: KeyboardEvent) {
+    const action = KEYS[e.key]
+    if (!action) return
+    e.preventDefault()
+    dispatch(action)
+  }
+  window.addEventListener('keydown', onKey)
+
+  return () => {
+    cancelAnimationFrame(raf)
+    window.removeEventListener('keydown', onKey)
+  }
+}
