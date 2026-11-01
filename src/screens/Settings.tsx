@@ -231,6 +231,13 @@ export function Settings() {
           onClose={close}
           options={[
             { label: 'Shut down now', onSelect: () => void tv.power('poweroff') },
+            {
+              label: 'Check for a newer update first',
+              onSelect: () => {
+                close()
+                void tv.osUpdateCheck().then(setOsUpdate)
+              },
+            },
             { label: 'Later', onSelect: close },
           ]}
         />
