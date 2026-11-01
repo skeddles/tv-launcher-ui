@@ -1,16 +1,18 @@
 // Controller and keyboard input -> navigation actions.
 // Xbox One controller via the browser Gamepad API ("standard" mapping):
-//   A = select, B = back, D-pad / left stick = move, Y = search shortcut.
+//   A = select, B = back, D-pad / left stick = move, Y = search shortcut,
+//   Menu ☰ = options for the highlighted tile.
 // Arrow keys, Enter and Escape/Backspace do the same for testing with a keyboard.
 
 import { back, move, select, type Direction } from './focus'
 import { goTo } from './place'
+import { openMenuForFocused } from './tileMenu'
 
 const REPEAT_DELAY = 380
 const REPEAT_RATE = 110
 const STICK_THRESHOLD = 0.55
 
-export type Action = Direction | 'select' | 'back' | 'search' | 'x'
+export type Action = Direction | 'select' | 'back' | 'search' | 'x' | 'menu'
 
 // Listeners can intercept raw actions before navigation (e.g. the keyboard's
 // shortcuts). Return true to consume.
@@ -42,6 +44,9 @@ function dispatch(action: Action) {
       break
     case 'x':
       break // only used by the on-screen keyboard (delete)
+    case 'menu':
+      openMenuForFocused()
+      break
     default:
       move(action)
   }
@@ -52,6 +57,7 @@ const BUTTONS: Array<[number, Action]> = [
   [1, 'back'], // B
   [2, 'x'], // X
   [3, 'search'], // Y
+  [9, 'menu'], // Menu ☰: options for the highlighted tile
   [12, 'up'],
   [13, 'down'],
   [14, 'left'],
@@ -114,6 +120,7 @@ export function startInput(): () => void {
     Escape: 'back',
     Backspace: 'back',
     BrowserBack: 'back',
+    ContextMenu: 'menu',
   }
   function onKey(e: KeyboardEvent) {
     const action = KEYS[e.key]

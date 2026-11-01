@@ -45,7 +45,7 @@ function state(): ScreenText {
   }
 }
 
-const ACTIONS: Action[] = ['up', 'down', 'left', 'right', 'select', 'back', 'search', 'x']
+const ACTIONS: Action[] = ['up', 'down', 'left', 'right', 'select', 'back', 'search', 'x', 'menu']
 
 /** Press a controller button in the launcher. */
 function press(action: string, times = 1): boolean {

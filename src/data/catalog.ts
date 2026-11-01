@@ -19,6 +19,9 @@ export interface CatalogItem {
   // the service's current logo on its Wikidata entry (property P154). The tile's
   // `color` is the background behind it.
   logo?: string
+  // Recolour the logo for contrast: 'white' = all white; 'invert' = dark parts
+  // light, colours kept roughly (for logos with black text)
+  logoTone?: 'white' | 'invert'
 }
 
 /** A Commons file as a PNG of the given width (Commons renders SVGs). */
@@ -54,6 +57,7 @@ export const streaming: CatalogItem[] = [
     title: 'Plex',
     color: '#1F1F1F',
     logo: 'Plex logo 2022.svg',
+    logoTone: 'invert',
     tags: ['movies', 'tv'],
     launch: { kind: 'flatpak', appId: 'tv.plex.PlexHTPC' },
     needs: 'tv.plex.PlexHTPC',
@@ -61,8 +65,9 @@ export const streaming: CatalogItem[] = [
   {
     id: 'disney',
     title: 'Disney+',
-    color: '#0B1631',
+    color: '#0E2A5C',
     logo: 'Disney+ 2024.svg',
+    logoTone: 'white',
     tags: ['movies', 'tv'],
     launch: chrome('https://www.disneyplus.com/'),
     needs: 'com.google.Chrome',
@@ -79,8 +84,9 @@ export const streaming: CatalogItem[] = [
   {
     id: 'twitch',
     title: 'Twitch',
-    color: '#FFFFFF',
+    color: '#9146FF',
     logo: 'Twitch logo 2019.svg',
+    logoTone: 'white',
     tags: ['video'],
     launch: { kind: 'web', url: 'https://www.twitch.tv/' },
   },

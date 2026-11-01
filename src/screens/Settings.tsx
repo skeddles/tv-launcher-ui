@@ -222,7 +222,7 @@ export function Settings() {
           <dt>Right stick</dt>
           <dd>Scroll</dd>
           <dt>A / B</dt>
-          <dd>Click / right-click</dd>
+          <dd>Click / right-click (after using the D-pad: Enter / Back)</dd>
           <dt>Y</dt>
           <dd>Keyboard: type, then Send</dd>
           <dt>X</dt>
@@ -233,6 +233,8 @@ export function Settings() {
           <dd>Enter / Escape</dd>
           <dt>LB / RB</dt>
           <dd>Back / Forward</dd>
+          <dt>Menu ☰ on a launcher tile</dt>
+          <dd>Tile options (hide its name, remove from Recently Opened)</dd>
           <dt>View + D-pad ↑↓</dt>
           <dd>Volume (anywhere, also in the launcher)</dd>
         </dl>

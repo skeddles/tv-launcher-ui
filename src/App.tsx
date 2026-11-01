@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Dialog } from './components/Dialog'
 import { Rail } from './components/Rail'
+import { TileOptionsDialog } from './components/TileOptions'
 import { TypingScreen } from './components/TypingScreen'
 import { tv } from './lib/bridge'
 import { currentElement, focus, pushBack, startFocusWatcher } from './lib/focus'
@@ -89,9 +90,7 @@ export default function App() {
       <main className="main" data-scroll key={screen}>
         <ScreenView screen={screen} />
       </main>
-      {typingFor && (
-        <TypingScreen label={typingFor.label} password={typingFor.password} onClose={() => setTypingFor(null)} />
-      )}
+      {typingFor && <TypingScreen label={typingFor.label} password={typingFor.password} onClose={() => setTypingFor(null)} />}
       {running && !typingFor && (
         <Dialog
           title={`${running.label} is still running`}
@@ -115,6 +114,7 @@ export default function App() {
           onClose={() => setRunning(null)}
         />
       )}
+      <TileOptionsDialog />
       {notice && (
         <div className="toast" role="status">
           {notice}

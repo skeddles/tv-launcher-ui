@@ -16,6 +16,7 @@ export interface TileModel {
   image?: string
   icon?: string
   logo?: string // Wikimedia Commons file name (see catalog.ts)
+  logoTone?: 'white' | 'invert'
   kind: 'service' | 'app' | 'game'
 }
 

@@ -33,6 +33,8 @@ export function TileRow({
             image={t.image}
             icon={t.icon}
             logo={t.logo ? commonsImage(t.logo) : undefined}
+            logoTone={t.logoTone}
+            optionsKey={t.id}
             badge={progress != null ? 'Installing' : missing ? 'Install' : undefined}
             progress={progress}
             isDefault={first && i === 0}

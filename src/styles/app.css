@@ -559,7 +559,11 @@ html:not(.pointer-active) * {
   padding: 16px 20px;
   border-radius: 12px;
   background: #0b0c0e;
-  font: 600 44px/1.2 ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font:
+    600 44px/1.2 ui-monospace,
+    'SFMono-Regular',
+    Menlo,
+    monospace;
   letter-spacing: 0.08em;
   text-align: center;
   user-select: all;
@@ -573,4 +577,19 @@ html:not(.pointer-active) * {
   width: 72%;
   height: 56%;
   object-fit: contain;
+}
+
+/* Logo recolouring for contrast (catalog.ts logoTone) */
+.tile__logo--white {
+  filter: brightness(0) invert(1);
+}
+.tile__logo--invert {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* Name hidden (tile options): the icon alone, centred and larger */
+.tile--bare .tile__icon {
+  width: 104px;
+  height: 104px;
+  transform: translate(-50%, -50%);
 }
