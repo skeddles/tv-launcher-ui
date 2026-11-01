@@ -84,9 +84,8 @@ export const streaming: CatalogItem[] = [
   {
     id: 'twitch',
     title: 'Twitch',
-    color: '#9146FF',
-    logo: 'Twitch logo 2019.svg',
-    logoTone: 'white',
+    color: '#FFFFFF',
+    logo: 'Twitch logo 2019.svg', // a filled shape with cut-out letters: keep its own colours
     tags: ['video'],
     launch: { kind: 'web', url: 'https://www.twitch.tv/' },
   },
