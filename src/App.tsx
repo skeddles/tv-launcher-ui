@@ -1,5 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Rail } from './components/Rail'
+import { TypingScreen } from './components/TypingScreen'
+import { tv } from './lib/bridge'
 import { currentElement, focus, pushBack, startFocusWatcher } from './lib/focus'
 import { startInput } from './lib/input'
 import { startLibrary, useLibrary } from './lib/library'
@@ -49,6 +51,17 @@ function defaultBack(): boolean {
 export default function App() {
   const screen = usePlace((p) => p.screen)
   const notice = useLibrary().notice
+  // Set while another app is waiting for text (Y in mouse mode).
+  const [typingFor, setTypingFor] = useState<string | null>(null)
+
+  useEffect(
+    () =>
+      tv.onEvent((e) => {
+        if (e.type === 'keyboard-request') setTypingFor(e.label)
+        if (e.type === 'keyboard-closed') setTypingFor(null)
+      }),
+    [],
+  )
 
   useEffect(() => {
     startLibrary()
@@ -68,6 +81,7 @@ export default function App() {
       <main className="main" data-scroll key={screen}>
         <ScreenView screen={screen} />
       </main>
+      {typingFor && <TypingScreen label={typingFor} onClose={() => setTypingFor(null)} />}
       {notice && (
         <div className="toast" role="status">
           {notice}

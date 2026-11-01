@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Dialog } from '../components/Dialog'
 import { Header } from '../components/Header'
 import { accents } from '../data/catalog'
-import { tv, type SystemInfo } from '../lib/bridge'
+import { tv, type DisplaySettings, type SystemInfo } from '../lib/bridge'
+import { notify } from '../lib/library'
 import { useFocused } from '../lib/focus'
 import { setPrefs, usePrefs } from '../lib/prefs'
 
@@ -29,11 +30,24 @@ export function Settings() {
   const accent = usePrefs((p) => p.accent)
   const [info, setInfo] = useState<SystemInfo | null>(null)
   const [confirm, setConfirm] = useState<Confirm>(null)
+  const [disp, setDisp] = useState<DisplaySettings | null>(null)
   const close = useCallback(() => setConfirm(null), [])
 
   useEffect(() => {
     tv.systemInfo().then(setInfo).catch(() => setInfo(null))
+    tv.getDisplay().then(setDisp).catch(() => setDisp(null))
   }, [])
+
+  const nextScale = async () => {
+    if (!disp) return
+    const next = disp.scales[(disp.scales.indexOf(disp.scale) + 1) % disp.scales.length]
+    setDisp({ ...disp, scale: next })
+    try {
+      await tv.setDisplay({ scale: next })
+    } catch {
+      notify("Couldn't change the app size")
+    }
+  }
 
   const nextAccent = () => setPrefs({ accent: accents[(accents.indexOf(accent) + 1) % accents.length] })
 
@@ -54,11 +68,53 @@ export function Settings() {
             </span>
           }
         />
+        <Item
+          id="settings:scale"
+          label="App size (other apps and the pointer)"
+          onSelect={() => void nextScale()}
+          value={disp ? `${Math.round(disp.scale * 100)}%` : '…'}
+        />
+        <Item
+          id="settings:mouse-reset"
+          label="Forget mouse mode choices"
+          onSelect={() => {
+            void tv.resetInputPrefs()
+            notify('Mouse mode will decide automatically again for every app')
+          }}
+        />
         <Item id="settings:reload" label="Reload launcher screen" onSelect={() => void tv.power('reload-ui')} />
         <Item id="settings:restart" label="Restart launcher" onSelect={() => void tv.power('restart-shell')} />
         <Item id="settings:reboot" label="Restart TV PC" onSelect={() => setConfirm('reboot')} />
         <Item id="settings:poweroff" label="Shut down" onSelect={() => setConfirm('poweroff')} />
       </div>
+
+      <section className="row" data-scroll-anchor>
+        <h2 className="row__title">Controller in other apps</h2>
+        <p className="muted">
+          Apps that don't read the controller get mouse mode automatically. Hold the Xbox button for a second to turn it
+          on or off for the app you're in; that choice is remembered.
+        </p>
+        <dl className="info-grid">
+          <dt>Xbox button</dt>
+          <dd>Back to Home (hold: mouse mode on/off)</dd>
+          <dt>Left stick</dt>
+          <dd>Move the pointer (hold RT for slow and precise)</dd>
+          <dt>Right stick</dt>
+          <dd>Scroll</dd>
+          <dt>A / B</dt>
+          <dd>Click / right-click</dd>
+          <dt>Y</dt>
+          <dd>Keyboard: type, then Send</dd>
+          <dt>X</dt>
+          <dd>Space (play/pause most videos)</dd>
+          <dt>D-pad</dt>
+          <dd>Arrow keys</dd>
+          <dt>Menu / View</dt>
+          <dd>Enter / Escape</dd>
+          <dt>LB / RB</dt>
+          <dd>Back / Forward</dd>
+        </dl>
+      </section>
 
       <section className="row" data-scroll-anchor>
         <h2 className="row__title">About</h2>

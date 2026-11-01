@@ -45,6 +45,15 @@ export type ShellEvent =
   | { type: 'web-closed' }
   | { type: 'install-progress'; appId: string; percent: number }
   | { type: 'notice'; message: string }
+  // In mouse mode the controller's Y asks for the keyboard to type into another app.
+  | { type: 'keyboard-request'; label: string }
+  | { type: 'keyboard-closed' }
+  | { type: 'mouse-mode'; on: boolean; label: string | null }
+
+export interface DisplaySettings {
+  scale: number // how big other apps look; the launcher itself stays the same
+  scales: number[]
+}
 
 export interface TvBridge {
   listFlatpaks(): Promise<InstalledFlatpak[]>
@@ -56,6 +65,13 @@ export interface TvBridge {
   storeUninstall(appId: string): Promise<{ ok: boolean; error?: string }>
   systemInfo(): Promise<SystemInfo>
   power(action: 'reboot' | 'poweroff' | 'restart-shell' | 'reload-ui'): Promise<void>
+  /** Close the keyboard and type the text into the app that asked (optionally pressing Enter). */
+  typeText(text: string, enter: boolean): Promise<void>
+  cancelTyping(): Promise<void>
+  getDisplay(): Promise<DisplaySettings>
+  setDisplay(opts: { scale: number }): Promise<{ scale: number }>
+  /** Forget per-app mouse mode choices. */
+  resetInputPrefs(): Promise<void>
   onEvent(cb: (e: ShellEvent) => void): () => void
 }
 
@@ -66,6 +82,12 @@ declare global {
 }
 
 const mockListeners = new Set<(e: ShellEvent) => void>()
+let mockScale = 1.5
+
+// Dev helper: in a browser, `__tvMock.keyboard('Firefox')` opens the typing screen.
+;(window as unknown as { __tvMock: unknown }).__tvMock = {
+  keyboard: (label = 'Firefox') => mockListeners.forEach((cb) => cb({ type: 'keyboard-request', label })),
+}
 
 const mock: TvBridge = {
   async listFlatpaks() {
@@ -122,6 +144,21 @@ const mock: TvBridge = {
     console.info('[mock] power', action)
     if (action === 'reload-ui') location.reload()
   },
+  async typeText(text, enter) {
+    console.info('[mock] type into app:', JSON.stringify(text), enter ? '+ Enter' : '')
+    mockListeners.forEach((cb) => cb({ type: 'keyboard-closed' }))
+  },
+  async cancelTyping() {
+    mockListeners.forEach((cb) => cb({ type: 'keyboard-closed' }))
+  },
+  async getDisplay() {
+    return { scale: mockScale, scales: [1, 1.25, 1.5, 1.75, 2] }
+  },
+  async setDisplay({ scale }) {
+    mockScale = scale
+    return { scale }
+  },
+  async resetInputPrefs() {},
   onEvent(cb) {
     mockListeners.add(cb)
     return () => mockListeners.delete(cb)

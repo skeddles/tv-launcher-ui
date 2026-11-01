@@ -13,6 +13,14 @@ const LETTERS = [
   ['z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '-'],
 ]
 
+// For web addresses, email and passwords in other apps.
+const SYMBOLS = [
+  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
+  ['@', '#', '$', '%', '&', '*', '-', '+', '(', ')'],
+  ['!', '"', "'", ':', ';', '/', '?', '=', '_', '~'],
+  ['.com', '.', ',', '<', '>', '[', ']', '{', '}', '\\'],
+]
+
 interface KeyProps {
   id: string
   label: React.ReactNode
@@ -42,15 +50,20 @@ interface KeyboardProps {
   onChange: (v: string) => void
   onDone?: () => void
   doneLabel?: string
+  /** Optional second action key, e.g. "Send + Enter". */
+  onAltDone?: () => void
+  altDoneLabel?: string
   overlay?: boolean
   onClose?: () => void
 }
 
-export function Keyboard({ value, onChange, onDone, doneLabel = 'Done', overlay, onClose }: KeyboardProps) {
+export function Keyboard({ value, onChange, onDone, doneLabel = 'Done', onAltDone, altDoneLabel, overlay, onClose }: KeyboardProps) {
   const [shift, setShift] = useState(false)
+  const [symbols, setSymbols] = useState(false)
+  const rows = symbols ? SYMBOLS : LETTERS
 
   const type = (ch: string) => {
-    onChange(value + (shift ? ch.toUpperCase() : ch))
+    onChange(value + (shift && !symbols ? ch.toUpperCase() : ch))
     if (shift) setShift(false)
   }
   const del = () => onChange(value.slice(0, -1))
@@ -74,10 +87,10 @@ export function Keyboard({ value, onChange, onDone, doneLabel = 'Done', overlay,
       role="group"
       aria-label="On-screen keyboard"
     >
-      {LETTERS.map((row, r) => (
+      {rows.map((row, r) => (
         <div className="keyboard__row" key={r}>
           {row.map((ch) => (
-            <Key key={ch} id={`kb:${ch}`} label={shift ? ch.toUpperCase() : ch} onPress={() => type(ch)} />
+            <Key key={ch} id={`kb:${ch}`} label={shift && !symbols ? ch.toUpperCase() : ch} onPress={() => type(ch)} />
           ))}
         </div>
       ))}
@@ -89,9 +102,17 @@ export function Keyboard({ value, onChange, onDone, doneLabel = 'Done', overlay,
           className={`key--wide${shift ? ' key--on' : ''}`}
           onPress={() => setShift((s) => !s)}
         />
+        <Key
+          id="kb:symbols"
+          label={symbols ? 'abc' : '&123'}
+          ariaLabel={symbols ? 'Letters' : 'Symbols'}
+          className="key--wide"
+          onPress={() => setSymbols((v) => !v)}
+        />
         <Key id="kb:space" label="Space" className="key--xwide" onPress={() => onChange(value + ' ')} />
         <Key id="kb:del" label={<Icon name="backspace" />} ariaLabel="Delete" className="key--wide" onPress={del} />
         <Key id="kb:clear" label="Clear" className="key--wide" onPress={() => onChange('')} />
+        {onAltDone && <Key id="kb:altdone" label={altDoneLabel ?? 'Done'} className="key--wide" onPress={onAltDone} />}
         {onDone && <Key id="kb:done" label={doneLabel} className="key--wide key--on" onPress={onDone} />}
       </div>
       <span className="keyboard__hint">A type · X delete · B {overlay ? 'close' : 'back'}</span>

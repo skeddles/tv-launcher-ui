@@ -482,3 +482,30 @@ button {
   font-size: 32px;
   font-weight: 700;
 }
+
+/* ---------- Typing into another app ---------- */
+
+.typing {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 20px;
+  padding: var(--main-pad-top) var(--main-pad-x) 48px;
+}
+
+.typing__title {
+  margin: 0;
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.typing__text {
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
