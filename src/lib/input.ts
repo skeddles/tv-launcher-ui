@@ -24,6 +24,10 @@ export function interceptInput(fn: (a: Action) => boolean) {
   }
 }
 
+export function dispatchAction(action: Action) {
+  dispatch(action)
+}
+
 function dispatch(action: Action) {
   for (let i = interceptors.length - 1; i >= 0; i--) if (interceptors[i](action)) return
   switch (action) {
