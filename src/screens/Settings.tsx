@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Dialog } from '../components/Dialog'
 import { Header } from '../components/Header'
 import { accents } from '../data/catalog'
-import { tv, type DisplaySettings, type SystemInfo } from '../lib/bridge'
+import { tv, type DisplaySettings, type OsUpdateState, type SystemInfo } from '../lib/bridge'
 import { notify } from '../lib/library'
 import { useFocused } from '../lib/focus'
 import { interceptInput } from '../lib/input'
@@ -26,7 +26,44 @@ function Item({ id, label, value, onSelect, isDefault }: { id: string; label: st
   )
 }
 
-type Confirm = 'reboot' | 'poweroff' | null
+type Confirm = 'reboot' | 'poweroff' | 'update' | null
+
+const mbText = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)} GB` : `${Math.round(n)} MB`)
+
+/** What the System update row says on the right. */
+function osUpdateValue(u: OsUpdateState | null): React.ReactNode {
+  if (!u) return '…'
+  switch (u.phase) {
+    case 'checking':
+      return 'Checking…'
+    case 'up-to-date':
+      return 'Up to date'
+    case 'available':
+      return u.totalMB ? `Update available · ${mbText(u.totalMB)} · Download` : 'Update available · Download'
+    case 'downloading':
+      return (
+        <span className="volume" aria-label={`Downloading ${u.percent ?? 0}%`}>
+          <span className="volume__bar" aria-hidden="true">
+            <span className="volume__fill" style={{ width: `${u.percent ?? 0}%` }} />
+          </span>
+          <span className="update__text">
+            {u.message ??
+              (u.percent == null
+                ? 'Starting…'
+                : `${u.percent}% · ${mbText(u.doneMB)} of ${mbText(u.totalMB)}`)}
+          </span>
+        </span>
+      )
+    case 'ready':
+      return 'Ready · shut down to finish'
+    case 'busy':
+      return u.message ?? 'Updating in the background…'
+    case 'error':
+      return u.message ?? "Couldn't update"
+    default:
+      return 'Check for updates'
+  }
+}
 
 export function Settings() {
   const accent = usePrefs((p) => p.accent)
@@ -34,6 +71,7 @@ export function Settings() {
   const [confirm, setConfirm] = useState<Confirm>(null)
   const [disp, setDisp] = useState<DisplaySettings | null>(null)
   const [volume, setVolume] = useState<number | null>(null)
+  const [osUpdate, setOsUpdate] = useState<OsUpdateState | null>(null)
   const close = useCallback(() => setConfirm(null), [])
 
   useEffect(() => {
@@ -42,8 +80,12 @@ export function Settings() {
     tv.getVolume()
       .then((v) => setVolume(v.volume))
       .catch(() => setVolume(null))
+    tv.osUpdateStatus()
+      .then(setOsUpdate)
+      .catch(() => setOsUpdate(null))
     const stopEvents = tv.onEvent((e) => {
       if (e.type === 'volume') setVolume(e.volume)
+      if (e.type === 'os-update') setOsUpdate(e.state)
     })
     // On the Volume row, left/right change the volume like a TV's volume bar.
     const stopKeys = interceptInput((a) => {
@@ -66,6 +108,13 @@ export function Settings() {
     } catch {
       notify("Couldn't change the app size")
     }
+  }
+
+  const updateAction = () => {
+    const phase = osUpdate?.phase ?? 'unknown'
+    if (phase === 'available') void tv.osUpdateDownload().then(setOsUpdate)
+    else if (phase === 'ready') setConfirm('update')
+    else if (phase === 'unknown' || phase === 'up-to-date' || phase === 'error') void tv.osUpdateCheck().then(setOsUpdate)
   }
 
   const nextAccent = () => setPrefs({ accent: accents[(accents.indexOf(accent) + 1) % accents.length] })
@@ -116,6 +165,7 @@ export function Settings() {
             notify('Mouse mode will decide automatically again for every app')
           }}
         />
+        <Item id="settings:update" label="System update" onSelect={updateAction} value={osUpdateValue(osUpdate)} />
         <Item id="settings:reload" label="Reload launcher screen" onSelect={() => void tv.power('reload-ui')} />
         <Item id="settings:restart" label="Restart launcher" onSelect={() => void tv.power('restart-shell')} />
         <Item id="settings:reboot" label="Restart TV PC" onSelect={() => setConfirm('reboot')} />
@@ -174,7 +224,18 @@ export function Settings() {
         )}
       </section>
 
-      {confirm && (
+      {confirm === 'update' && (
+        <Dialog
+          title="Finish the update?"
+          message="The PC shuts down. Then press its power button: it starts with the new system. (A full shutdown keeps the TV picture from getting stuck.)"
+          onClose={close}
+          options={[
+            { label: 'Shut down now', onSelect: () => void tv.power('poweroff') },
+            { label: 'Later', onSelect: close },
+          ]}
+        />
+      )}
+      {confirm && confirm !== 'update' && (
         <Dialog
           title={confirm === 'reboot' ? 'Restart the TV PC?' : 'Shut down?'}
           onClose={close}

@@ -537,3 +537,10 @@ button {
   text-align: right;
   color: var(--text);
 }
+
+.update__text {
+  min-width: 220px;
+  text-align: right;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}

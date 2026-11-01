@@ -53,6 +53,16 @@ export type ShellEvent =
   // Xbox button during a Steam game (or Big Picture): it's still running behind the launcher.
   | { type: 'app-running'; label: string; quitLabel: string }
   | { type: 'steam-closed'; label: string }
+  | { type: 'os-update'; state: OsUpdateState }
+
+export interface OsUpdateState {
+  // unknown: not checked yet · busy: an update started elsewhere (e.g. Bazzite's daily one) is running
+  phase: 'unknown' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'ready' | 'busy' | 'error'
+  percent: number | null
+  doneMB: number
+  totalMB: number
+  message: string | null
+}
 
 export interface DisplaySettings {
   scale: number // how big other apps look; the launcher itself stays the same
@@ -80,6 +90,10 @@ export interface TvBridge {
   resumeApp(): Promise<boolean>
   /** Quit that game (or close Steam for Big Picture). */
   quitApp(): Promise<boolean>
+  /** System image update: current state, check for one, download one (applies at next start). */
+  osUpdateStatus(): Promise<OsUpdateState>
+  osUpdateCheck(): Promise<OsUpdateState>
+  osUpdateDownload(): Promise<OsUpdateState>
   /** System volume in percent (null if unknown). */
   getVolume(): Promise<{ volume: number | null; muted: boolean }>
   /** One 5% step up (+1) or down (-1). */
@@ -96,6 +110,12 @@ declare global {
 const mockListeners = new Set<(e: ShellEvent) => void>()
 let mockScale = 1.5
 let mockVolume = 100
+let mockOs: OsUpdateState = { phase: 'unknown', percent: null, doneMB: 0, totalMB: 0, message: null }
+const setMockOs = (patch: Partial<OsUpdateState>) => {
+  mockOs = { ...mockOs, ...patch }
+  mockListeners.forEach((cb) => cb({ type: 'os-update', state: mockOs }))
+  return mockOs
+}
 
 // Dev helpers: in a browser, `__tvMock.keyboard('Firefox')` opens the typing screen,
 // `__tvMock.running()` the dialog shown when the Xbox button leaves a Steam game running.
@@ -179,6 +199,26 @@ const mock: TvBridge = {
   async resumeApp() {
     console.info('[mock] resume app')
     return true
+  },
+  async osUpdateStatus() {
+    return mockOs
+  },
+  async osUpdateCheck() {
+    setMockOs({ phase: 'checking' })
+    setTimeout(() => setMockOs({ phase: 'available', totalMB: 912.2 }), 800)
+    return mockOs
+  },
+  async osUpdateDownload() {
+    let done = 0
+    setMockOs({ phase: 'downloading', percent: 0, doneMB: 0 })
+    const t = setInterval(() => {
+      done = Math.min(912.2, done + 120)
+      if (done >= 912.2) {
+        clearInterval(t)
+        setMockOs({ phase: 'ready', percent: 100, doneMB: done })
+      } else setMockOs({ percent: Math.floor((done / 912.2) * 100), doneMB: done })
+    }, 400)
+    return mockOs
   },
   async quitApp() {
     console.info('[mock] quit app')
