@@ -50,6 +50,9 @@ export type ShellEvent =
   | { type: 'keyboard-closed' }
   | { type: 'mouse-mode'; on: boolean; label: string | null }
   | { type: 'volume'; volume: number | null; muted: boolean }
+  // Xbox button during a Steam game (or Big Picture): it's still running behind the launcher.
+  | { type: 'app-running'; label: string; quitLabel: string }
+  | { type: 'steam-closed'; label: string }
 
 export interface DisplaySettings {
   scale: number // how big other apps look; the launcher itself stays the same
@@ -73,6 +76,10 @@ export interface TvBridge {
   setDisplay(opts: { scale: number }): Promise<{ scale: number }>
   /** Forget per-app mouse mode choices. */
   resetInputPrefs(): Promise<void>
+  /** Go back to the Steam game left running behind the launcher. False if it has closed. */
+  resumeApp(): Promise<boolean>
+  /** Quit that game (or close Steam for Big Picture). */
+  quitApp(): Promise<boolean>
   /** System volume in percent (null if unknown). */
   getVolume(): Promise<{ volume: number | null; muted: boolean }>
   /** One 5% step up (+1) or down (-1). */
@@ -90,10 +97,13 @@ const mockListeners = new Set<(e: ShellEvent) => void>()
 let mockScale = 1.5
 let mockVolume = 100
 
-// Dev helper: in a browser, `__tvMock.keyboard('Firefox')` opens the typing screen.
+// Dev helpers: in a browser, `__tvMock.keyboard('Firefox')` opens the typing screen,
+// `__tvMock.running()` the dialog shown when the Xbox button leaves a Steam game running.
 ;(window as unknown as { __tvMock: unknown }).__tvMock = {
   keyboard: (label = 'Firefox', password = false) =>
     mockListeners.forEach((cb) => cb({ type: 'keyboard-request', label, password })),
+  running: (label = 'Castle Crashers', quitLabel = 'Quit game') =>
+    mockListeners.forEach((cb) => cb({ type: 'app-running', label, quitLabel })),
 }
 
 const mock: TvBridge = {
@@ -166,6 +176,15 @@ const mock: TvBridge = {
     return { scale }
   },
   async resetInputPrefs() {},
+  async resumeApp() {
+    console.info('[mock] resume app')
+    return true
+  },
+  async quitApp() {
+    console.info('[mock] quit app')
+    mockListeners.forEach((cb) => cb({ type: 'steam-closed', label: 'game' }))
+    return true
+  },
   async getVolume() {
     return { volume: mockVolume, muted: false }
   },

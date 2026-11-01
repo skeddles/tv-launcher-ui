@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Dialog } from './components/Dialog'
 import { Rail } from './components/Rail'
 import { TypingScreen } from './components/TypingScreen'
 import { tv } from './lib/bridge'
@@ -53,12 +54,16 @@ export default function App() {
   const notice = useLibrary().notice
   // Set while another app is waiting for text (Y in mouse mode).
   const [typingFor, setTypingFor] = useState<{ label: string; password: boolean } | null>(null)
+  // Set after the Xbox button left a Steam game running behind the launcher.
+  const [running, setRunning] = useState<{ label: string; quitLabel: string } | null>(null)
 
   useEffect(
     () =>
       tv.onEvent((e) => {
         if (e.type === 'keyboard-request') setTypingFor({ label: e.label, password: Boolean(e.password) })
         if (e.type === 'keyboard-closed') setTypingFor(null)
+        if (e.type === 'app-running') setRunning({ label: e.label, quitLabel: e.quitLabel })
+        if (e.type === 'steam-closed') setRunning(null)
       }),
     [],
   )
@@ -83,6 +88,29 @@ export default function App() {
       </main>
       {typingFor && (
         <TypingScreen label={typingFor.label} password={typingFor.password} onClose={() => setTypingFor(null)} />
+      )}
+      {running && !typingFor && (
+        <Dialog
+          title={`${running.label} is still running`}
+          options={[
+            {
+              label: 'Resume',
+              onSelect: () => {
+                setRunning(null)
+                void tv.resumeApp()
+              },
+            },
+            {
+              label: running.quitLabel,
+              onSelect: () => {
+                setRunning(null)
+                void tv.quitApp()
+              },
+            },
+            { label: 'Stay on the launcher', onSelect: () => setRunning(null) },
+          ]}
+          onClose={() => setRunning(null)}
+        />
       )}
       {notice && (
         <div className="toast" role="status">
