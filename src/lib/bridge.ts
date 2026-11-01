@@ -94,6 +94,8 @@ export interface TvBridge {
   osUpdateStatus(): Promise<OsUpdateState>
   osUpdateCheck(): Promise<OsUpdateState>
   osUpdateDownload(): Promise<OsUpdateState>
+  /** A new one-time code for connecting Claude to this PC, and the connector URL to add in Claude. */
+  newPairingCode(): Promise<{ code: string; url: string | null }>
   /** System volume in percent (null if unknown). */
   getVolume(): Promise<{ volume: number | null; muted: boolean }>
   /** One 5% step up (+1) or down (-1). */
@@ -199,6 +201,9 @@ const mock: TvBridge = {
   async resumeApp() {
     console.info('[mock] resume app')
     return true
+  },
+  async newPairingCode() {
+    return { code: 'K7QX-4MZP-H9RA', url: 'https://tv-pc.example.ts.net/mcp' }
   },
   async osUpdateStatus() {
     return mockOs

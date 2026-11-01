@@ -1,20 +1,37 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Dialog } from '../components/Dialog'
-import { Header } from '../components/Header'
-import { accents } from '../data/catalog'
-import { tv, type DisplaySettings, type OsUpdateState, type SystemInfo } from '../lib/bridge'
-import { notify } from '../lib/library'
-import { useFocused } from '../lib/focus'
-import { interceptInput } from '../lib/input'
-import { getPlace } from '../lib/place'
-import { setPrefs, usePrefs } from '../lib/prefs'
+import { useCallback, useEffect, useState } from "react";
+import { Dialog } from "../components/Dialog";
+import { Header } from "../components/Header";
+import { accents } from "../data/catalog";
+import {
+  tv,
+  type DisplaySettings,
+  type OsUpdateState,
+  type SystemInfo,
+} from "../lib/bridge";
+import { notify } from "../lib/library";
+import { useFocused } from "../lib/focus";
+import { interceptInput } from "../lib/input";
+import { getPlace } from "../lib/place";
+import { setPrefs, usePrefs } from "../lib/prefs";
 
-function Item({ id, label, value, onSelect, isDefault }: { id: string; label: string; value?: React.ReactNode; onSelect: () => void; isDefault?: boolean }) {
-  const focused = useFocused(id)
+function Item({
+  id,
+  label,
+  value,
+  onSelect,
+  isDefault,
+}: {
+  id: string;
+  label: string;
+  value?: React.ReactNode;
+  onSelect: () => void;
+  isDefault?: boolean;
+}) {
+  const focused = useFocused(id);
   return (
     <button
       type="button"
-      className={`list-item${focused ? ' is-focused' : ''}`}
+      className={`list-item${focused ? " is-focused" : ""}`}
       data-focus={id}
       data-focus-group="content"
       data-focus-default={isDefault || undefined}
@@ -23,101 +40,125 @@ function Item({ id, label, value, onSelect, isDefault }: { id: string; label: st
       <span>{label}</span>
       {value != null && <span className="list-item__value">{value}</span>}
     </button>
-  )
+  );
 }
 
-type Confirm = 'reboot' | 'poweroff' | 'update' | null
+type Confirm = "reboot" | "poweroff" | "update" | null;
 
-const mbText = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)} GB` : `${Math.round(n)} MB`)
+const mbText = (n: number) =>
+  n >= 1000 ? `${(n / 1000).toFixed(1)} GB` : `${Math.round(n)} MB`;
 
 /** What the System update row says on the right. */
 function osUpdateValue(u: OsUpdateState | null): React.ReactNode {
-  if (!u) return '…'
+  if (!u) return "…";
   switch (u.phase) {
-    case 'checking':
-      return 'Checking…'
-    case 'up-to-date':
-      return 'Up to date'
-    case 'available':
-      return u.totalMB ? `Update available · ${mbText(u.totalMB)} · Download` : 'Update available · Download'
-    case 'downloading':
+    case "checking":
+      return "Checking…";
+    case "up-to-date":
+      return "Up to date";
+    case "available":
+      return u.totalMB
+        ? `Update available · ${mbText(u.totalMB)} · Download`
+        : "Update available · Download";
+    case "downloading":
       return (
         <span className="volume" aria-label={`Downloading ${u.percent ?? 0}%`}>
           <span className="volume__bar" aria-hidden="true">
-            <span className="volume__fill" style={{ width: `${u.percent ?? 0}%` }} />
+            <span
+              className="volume__fill"
+              style={{ width: `${u.percent ?? 0}%` }}
+            />
           </span>
           <span className="update__text">
             {u.message ??
               (u.percent == null
-                ? 'Starting…'
+                ? "Starting…"
                 : `${u.percent}% · ${mbText(u.doneMB)} of ${mbText(u.totalMB)}`)}
           </span>
         </span>
-      )
-    case 'ready':
-      return 'Ready · shut down to finish'
-    case 'busy':
-      return u.message ?? 'Updating in the background…'
-    case 'error':
-      return u.message ?? "Couldn't update"
+      );
+    case "ready":
+      return "Ready · shut down to finish";
+    case "busy":
+      return u.message ?? "Updating in the background…";
+    case "error":
+      return u.message ?? "Couldn't update";
     default:
-      return 'Check for updates'
+      return "Check for updates";
   }
 }
 
 export function Settings() {
-  const accent = usePrefs((p) => p.accent)
-  const [info, setInfo] = useState<SystemInfo | null>(null)
-  const [confirm, setConfirm] = useState<Confirm>(null)
-  const [disp, setDisp] = useState<DisplaySettings | null>(null)
-  const [volume, setVolume] = useState<number | null>(null)
-  const [osUpdate, setOsUpdate] = useState<OsUpdateState | null>(null)
-  const close = useCallback(() => setConfirm(null), [])
+  const accent = usePrefs((p) => p.accent);
+  const [info, setInfo] = useState<SystemInfo | null>(null);
+  const [confirm, setConfirm] = useState<Confirm>(null);
+  const [disp, setDisp] = useState<DisplaySettings | null>(null);
+  const [volume, setVolume] = useState<number | null>(null);
+  const [osUpdate, setOsUpdate] = useState<OsUpdateState | null>(null);
+  const [pairing, setPairing] = useState<{
+    code: string;
+    url: string | null;
+  } | null>(null);
+  const closePairing = useCallback(() => setPairing(null), []);
+  const close = useCallback(() => setConfirm(null), []);
 
   useEffect(() => {
-    tv.systemInfo().then(setInfo).catch(() => setInfo(null))
-    tv.getDisplay().then(setDisp).catch(() => setDisp(null))
+    tv.systemInfo()
+      .then(setInfo)
+      .catch(() => setInfo(null));
+    tv.getDisplay()
+      .then(setDisp)
+      .catch(() => setDisp(null));
     tv.getVolume()
       .then((v) => setVolume(v.volume))
-      .catch(() => setVolume(null))
+      .catch(() => setVolume(null));
     tv.osUpdateStatus()
       .then(setOsUpdate)
-      .catch(() => setOsUpdate(null))
+      .catch(() => setOsUpdate(null));
     const stopEvents = tv.onEvent((e) => {
-      if (e.type === 'volume') setVolume(e.volume)
-      if (e.type === 'os-update') setOsUpdate(e.state)
-    })
+      if (e.type === "volume") setVolume(e.volume);
+      if (e.type === "os-update") setOsUpdate(e.state);
+    });
     // On the Volume row, left/right change the volume like a TV's volume bar.
     const stopKeys = interceptInput((a) => {
-      if ((a !== 'left' && a !== 'right') || getPlace().focusId !== 'settings:volume') return false
-      void tv.changeVolume(a === 'right' ? 1 : -1)
-      return true
-    })
+      if (
+        (a !== "left" && a !== "right") ||
+        getPlace().focusId !== "settings:volume"
+      )
+        return false;
+      void tv.changeVolume(a === "right" ? 1 : -1);
+      return true;
+    });
     return () => {
-      stopEvents()
-      stopKeys()
-    }
-  }, [])
+      stopEvents();
+      stopKeys();
+    };
+  }, []);
 
   const nextScale = async () => {
-    if (!disp) return
-    const next = disp.scales[(disp.scales.indexOf(disp.scale) + 1) % disp.scales.length]
-    setDisp({ ...disp, scale: next })
+    if (!disp) return;
+    const next =
+      disp.scales[(disp.scales.indexOf(disp.scale) + 1) % disp.scales.length];
+    setDisp({ ...disp, scale: next });
     try {
-      await tv.setDisplay({ scale: next })
+      await tv.setDisplay({ scale: next });
     } catch {
-      notify("Couldn't change the app size")
+      notify("Couldn't change the app size");
     }
-  }
+  };
 
   const updateAction = () => {
-    const phase = osUpdate?.phase ?? 'unknown'
-    if (phase === 'available') void tv.osUpdateDownload().then(setOsUpdate)
-    else if (phase === 'ready') setConfirm('update')
-    else if (phase === 'unknown' || phase === 'up-to-date' || phase === 'error') void tv.osUpdateCheck().then(setOsUpdate)
-  }
+    const phase = osUpdate?.phase ?? "unknown";
+    if (phase === "available") void tv.osUpdateDownload().then(setOsUpdate);
+    else if (phase === "ready") setConfirm("update");
+    else if (phase === "unknown" || phase === "up-to-date" || phase === "error")
+      void tv.osUpdateCheck().then(setOsUpdate);
+  };
 
-  const nextAccent = () => setPrefs({ accent: accents[(accents.indexOf(accent) + 1) % accents.length] })
+  const nextAccent = () =>
+    setPrefs({
+      accent: accents[(accents.indexOf(accent) + 1) % accents.length],
+    });
 
   return (
     <>
@@ -131,7 +172,11 @@ export function Settings() {
           value={
             <span className="swatches" aria-label={`Current ${accent}`}>
               {accents.map((c) => (
-                <span key={c} className={`swatch${c === accent ? ' swatch--on' : ''}`} style={{ background: c }} />
+                <span
+                  key={c}
+                  className={`swatch${c === accent ? " swatch--on" : ""}`}
+                  style={{ background: c }}
+                />
               ))}
             </span>
           }
@@ -141,12 +186,17 @@ export function Settings() {
           label="Volume"
           onSelect={() => void tv.changeVolume(1)}
           value={
-            <span className="volume" aria-label={`Volume ${volume ?? ''}%`}>
+            <span className="volume" aria-label={`Volume ${volume ?? ""}%`}>
               <span aria-hidden="true">◀</span>
               <span className="volume__bar" aria-hidden="true">
-                <span className="volume__fill" style={{ width: `${volume ?? 0}%` }} />
+                <span
+                  className="volume__fill"
+                  style={{ width: `${volume ?? 0}%` }}
+                />
               </span>
-              <span className="volume__value">{volume == null ? '…' : `${volume}%`}</span>
+              <span className="volume__value">
+                {volume == null ? "…" : `${volume}%`}
+              </span>
               <span aria-hidden="true">▶</span>
             </span>
           }
@@ -155,28 +205,72 @@ export function Settings() {
           id="settings:scale"
           label="App size (other apps and the pointer)"
           onSelect={() => void nextScale()}
-          value={disp ? `${Math.round(disp.scale * 100)}%` : '…'}
+          value={disp ? `${Math.round(disp.scale * 100)}%` : "…"}
         />
         <Item
           id="settings:mouse-reset"
           label="Forget mouse mode choices"
           onSelect={() => {
-            void tv.resetInputPrefs()
-            notify('Mouse mode will decide automatically again for every app')
+            void tv.resetInputPrefs();
+            notify("Mouse mode will decide automatically again for every app");
           }}
         />
-        <Item id="settings:update" label="System update" onSelect={updateAction} value={osUpdateValue(osUpdate)} />
-        <Item id="settings:reload" label="Reload launcher screen" onSelect={() => void tv.power('reload-ui')} />
-        <Item id="settings:restart" label="Restart launcher" onSelect={() => void tv.power('restart-shell')} />
-        <Item id="settings:reboot" label="Restart TV PC" onSelect={() => setConfirm('reboot')} />
-        <Item id="settings:poweroff" label="Shut down" onSelect={() => setConfirm('poweroff')} />
+        <Item
+          id="settings:update"
+          label="System update"
+          onSelect={updateAction}
+          value={osUpdateValue(osUpdate)}
+        />
+        <Item
+          id="settings:claude"
+          label="Connect Claude"
+          value="Show a pairing code"
+          onSelect={() =>
+            // The screens update live; the shell side arrives with the next system update.
+            typeof tv.newPairingCode !== "function"
+              ? notify(
+                  "Pairing from here needs the next system update (Settings > System update)",
+                )
+              : void tv
+                  .newPairingCode()
+                  .then(setPairing)
+                  .catch((e: unknown) =>
+                    notify(
+                      e instanceof Error
+                        ? e.message.replace(/^.*Error: /, "")
+                        : "Couldn't make a pairing code",
+                    ),
+                  )
+          }
+        />
+        <Item
+          id="settings:reload"
+          label="Reload launcher screen"
+          onSelect={() => void tv.power("reload-ui")}
+        />
+        <Item
+          id="settings:restart"
+          label="Restart launcher"
+          onSelect={() => void tv.power("restart-shell")}
+        />
+        <Item
+          id="settings:reboot"
+          label="Restart TV PC"
+          onSelect={() => setConfirm("reboot")}
+        />
+        <Item
+          id="settings:poweroff"
+          label="Shut down"
+          onSelect={() => setConfirm("poweroff")}
+        />
       </div>
 
       <section className="row" data-scroll-anchor>
         <h2 className="row__title">Controller in other apps</h2>
         <p className="muted">
-          Apps that don't read the controller get mouse mode automatically. Hold the Xbox button for a second to turn it
-          on or off for the app you're in; that choice is remembered.
+          Apps that don't read the controller get mouse mode automatically. Hold
+          the Xbox button for a second to turn it on or off for the app you're
+          in; that choice is remembered.
         </p>
         <dl className="info-grid">
           <dt>Xbox button</dt>
@@ -211,12 +305,19 @@ export function Settings() {
             <dt>UI version</dt>
             <dd>{info.uiCommit}</dd>
             <dt>UI source</dt>
-            <dd>{info.uiSource === 'dev-server' ? 'Live (updates automatically)' : info.uiSource === 'fallback-build' ? 'Backup copy (live server not running)' : 'Browser'}</dd>
+            <dd>
+              {info.uiSource === "dev-server"
+                ? "Live (updates automatically)"
+                : info.uiSource === "fallback-build"
+                  ? "Backup copy (live server not running)"
+                  : "Browser"}
+            </dd>
             <dt>System image</dt>
             <dd>{info.imageVersion}</dd>
             <dt>Shell</dt>
             <dd>
-              {info.shellVersion} · Electron {info.electron} · Chromium {info.chrome}
+              {info.shellVersion} · Electron {info.electron} · Chromium{" "}
+              {info.chrome}
             </dd>
           </dl>
         ) : (
@@ -224,34 +325,48 @@ export function Settings() {
         )}
       </section>
 
-      {confirm === 'update' && (
+      {pairing && (
+        <Dialog
+          title={`Pairing code: ${pairing.code}`}
+          message={`In claude.ai: Settings > Connectors > Add custom connector${pairing.url ? `, URL ${pairing.url}` : ""}. Click Connect, then type this code on the page that opens and approve. The code works once, within 7 days; showing a new one cancels this one.`}
+          onClose={closePairing}
+          options={[{ label: "Done", onSelect: closePairing }]}
+        />
+      )}
+      {confirm === "update" && (
         <Dialog
           title="Finish the update?"
           message="The PC shuts down. Then press its power button: it starts with the new system. (A full shutdown keeps the TV picture from getting stuck.)"
           onClose={close}
           options={[
-            { label: 'Shut down now', onSelect: () => void tv.power('poweroff') },
             {
-              label: 'Check for a newer update first',
+              label: "Shut down now",
+              onSelect: () => void tv.power("poweroff"),
+            },
+            {
+              label: "Check for a newer update first",
               onSelect: () => {
-                close()
-                void tv.osUpdateCheck().then(setOsUpdate)
+                close();
+                void tv.osUpdateCheck().then(setOsUpdate);
               },
             },
-            { label: 'Later', onSelect: close },
+            { label: "Later", onSelect: close },
           ]}
         />
       )}
-      {confirm && confirm !== 'update' && (
+      {confirm && confirm !== "update" && (
         <Dialog
-          title={confirm === 'reboot' ? 'Restart the TV PC?' : 'Shut down?'}
+          title={confirm === "reboot" ? "Restart the TV PC?" : "Shut down?"}
           onClose={close}
           options={[
-            { label: confirm === 'reboot' ? 'Restart' : 'Shut down', onSelect: () => void tv.power(confirm) },
-            { label: 'Cancel', onSelect: close },
+            {
+              label: confirm === "reboot" ? "Restart" : "Shut down",
+              onSelect: () => void tv.power(confirm),
+            },
+            { label: "Cancel", onSelect: close },
           ]}
         />
       )}
     </>
-  )
+  );
 }
