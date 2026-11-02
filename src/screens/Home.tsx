@@ -3,6 +3,7 @@ import { Tile } from '../components/Tile'
 import { allTiles, appTiles, gameTiles, plexTiles, serviceTiles, useLibrary } from '../lib/library'
 import { goTo } from '../lib/place'
 import { usePrefs } from '../lib/prefs'
+import { ContinueRow } from './Games'
 import { TileRow } from './shared'
 
 export function StoreTile({ row }: { row: string }) {
@@ -19,6 +20,7 @@ export function Home() {
     <>
       <Header title="Home" />
       {recent.length > 0 && <TileRow first carousel title="Recently Opened" tiles={recent} />}
+      <ContinueRow first={recent.length === 0} />
       {lib.plex && lib.plex.continueWatching.length > 0 && (
         <TileRow carousel title="Continue watching" tiles={plexTiles(lib.plex.continueWatching)} />
       )}

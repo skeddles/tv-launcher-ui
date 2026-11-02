@@ -10,6 +10,7 @@ export interface TileProps {
   icon?: string
   logo?: string // URL of a logo that fills the tile (the name is then hidden by default)
   logoTone?: 'white' | 'invert'
+  art?: string // box art: shown whole over a blurred copy (the name is then hidden by default)
   // Tile id for per-tile options (Menu ☰ / right-click); tiles without one have no options
   optionsKey?: string
   subtitle?: string // a second line under the name (e.g. episode)
@@ -27,6 +28,7 @@ export function Tile({
   icon,
   logo,
   logoTone,
+  art,
   optionsKey,
   subtitle,
   badge,
@@ -39,7 +41,9 @@ export function Tile({
   const [imageFailed, setImageFailed] = useState(false)
   const [iconFailed, setIconFailed] = useState(false)
   const [logoFailed, setLogoFailed] = useState(false)
-  const showLogo = Boolean(logo) && !logoFailed
+  const [artFailed, setArtFailed] = useState(false)
+  const showArt = Boolean(art) && !artFailed
+  const showLogo = (Boolean(logo) && !logoFailed) || showArt
   const showImage = Boolean(image) && !imageFailed
   const showTitle = titleShown(optionsKey ? options : undefined, showLogo)
   const showIcon = !showImage && !showLogo && Boolean(icon) && !iconFailed
@@ -62,12 +66,18 @@ export function Tile({
       }}
       aria-label={title}
     >
-      {showLogo && (
+      {showArt && (
+        <>
+          <img className="tile__art-backdrop" src={art} alt="" loading="lazy" aria-hidden="true" />
+          <img className="tile__art" src={art} alt="" loading="lazy" onError={() => setArtFailed(true)} />
+        </>
+      )}
+      {showLogo && !showArt && (
         <img className={`tile__logo${logoTone ? ` tile__logo--${logoTone}` : ''}`} src={logo} alt="" onError={() => setLogoFailed(true)} />
       )}
       {showImage && <img className="tile__image" src={image} alt="" onError={() => setImageFailed(true)} />}
       {showIcon && <img className="tile__icon" src={icon} alt="" onError={() => setIconFailed(true)} />}
-      {showImage && showTitle && <span className="tile__shade" aria-hidden="true" />}
+      {(showImage || showArt) && showTitle && <span className="tile__shade" aria-hidden="true" />}
       {showTitle && (
         <span className="tile__title">
           {title}

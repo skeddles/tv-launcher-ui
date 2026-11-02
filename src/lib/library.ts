@@ -9,6 +9,7 @@ import { useSyncExternalStore } from 'react'
 import { tv, type InstalledFlatpak, type LaunchTarget, type PlexHome, type PlexItem, type SteamGame } from './bridge'
 import { colorFor, hiddenApps, steamBigPicture, streaming, type Tag } from '../data/catalog'
 import { markRecent } from './prefs'
+import { fetchRoms, markPlayed, romTile, type RomGame, type RomLibrary } from './games'
 
 export interface TileModel {
   id: string
@@ -21,6 +22,9 @@ export interface TileModel {
   icon?: string
   logo?: string // Wikimedia Commons file name (see catalog.ts)
   logoTone?: 'white' | 'invert'
+  art?: string // box art, shown whole on a blurred copy of itself (emulated games)
+  romId?: string // an emulated game (games.ts)
+  unplayable?: string // why it can't start yet
   subtitle?: string
   progress?: number | null // percent watched (Plex)
   rowKey?: string // the Plex row it was picked from (for row ordering)
@@ -34,9 +38,10 @@ interface LibraryState {
   installing: Record<string, number> // appId -> percent
   notice: string | null
   plex: PlexHome | null // null: not signed in to Plex, or not loaded yet
+  roms: RomLibrary // emulated games on this TV
 }
 
-let state: LibraryState = { loaded: false, flatpaks: [], games: [], installing: {}, notice: null, plex: null }
+let state: LibraryState = { loaded: false, flatpaks: [], games: [], installing: {}, notice: null, plex: null, roms: { systems: [], games: [] } }
 const listeners = new Set<() => void>()
 let noticeTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -57,6 +62,12 @@ export async function refreshLibrary() {
     tv.listSteamGames().catch(() => [] as SteamGame[]),
   ])
   set({ loaded: true, flatpaks, games })
+}
+
+/** Emulated games: on start and after an app closes (Continue playing changes). */
+export async function refreshRoms() {
+  const roms = await fetchRoms().catch(() => null)
+  if (roms) set({ roms })
 }
 
 /** Plex rows on Home: on start, every 5 minutes, and after an app closes (you may have watched something). */
@@ -87,6 +98,7 @@ export function startLibrary() {
   started = true
   void refreshLibrary()
   void refreshPlex()
+  void refreshRoms()
   setInterval(() => void refreshPlex(), 5 * 60 * 1000)
   tv.onEvent((e) => {
     if (e.type === 'install-progress') set({ installing: { ...state.installing, [e.appId]: e.percent } })
@@ -95,6 +107,9 @@ export function startLibrary() {
     if (e.type === 'app-exited' || e.type === 'web-closed') {
       void refreshLibrary()
       void refreshPlex()
+      // RetroArch writes its save state as it closes; look a moment later too
+      void refreshRoms()
+      setTimeout(() => void refreshRoms(), 3000)
     }
   })
 }
@@ -123,6 +138,10 @@ export async function uninstall(appId: string, label: string) {
 }
 
 export async function activate(tile: TileModel) {
+  if (tile.unplayable) {
+    notify(tile.unplayable)
+    return
+  }
   if (tile.needs && !isInstalled(tile.needs)) {
     const ok = await install(tile.needs, tile.title)
     if (!ok) return
@@ -134,6 +153,7 @@ export async function activate(tile: TileModel) {
   showLaunchCover(el, tile.title)
   if (tile.kind !== 'media') markRecent(tile.id) // Recently Opened is for apps
   if (tile.rowKey) recordRowPick(tile.rowKey)
+  if (tile.romId) markPlayed(tile.romId)
   try {
     await tv.launch(tile.launch, tile.title)
     markAppOpened()
@@ -181,8 +201,12 @@ export function gameTiles(games: SteamGame[]): TileModel[] {
   ]
 }
 
+export function romTiles(s: LibraryState = state, games: RomGame[] = s.roms.games): TileModel[] {
+  return games.map((g) => romTile(g, s.roms.systems))
+}
+
 export function allTiles(s: LibraryState = state): TileModel[] {
-  return [...serviceTiles(), ...gameTiles(s.games), ...appTiles(s.flatpaks)]
+  return [...serviceTiles(), ...gameTiles(s.games), ...appTiles(s.flatpaks), ...romTiles(s)]
 }
 
 export function useLibrary(): LibraryState {

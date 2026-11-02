@@ -4,7 +4,7 @@
 
 import { useSyncExternalStore } from 'react'
 
-export type Screen = 'search' | 'home' | 'movies' | 'tv' | 'apps' | 'games' | 'store' | 'settings'
+export type Screen = 'search' | 'home' | 'movies' | 'tv' | 'apps' | 'games' | 'allgames' | 'store' | 'settings'
 
 export interface Place {
   screen: Screen

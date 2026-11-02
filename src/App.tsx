@@ -16,6 +16,7 @@ import { Browse } from './screens/Browse'
 import { Home } from './screens/Home'
 import { Apps } from './screens/Apps'
 import { Games } from './screens/Games'
+import { AllGames } from './screens/AllGames'
 import { Search } from './screens/Search'
 import { Settings } from './screens/Settings'
 import { Store } from './screens/Store'
@@ -32,6 +33,8 @@ function ScreenView({ screen }: { screen: Screen }) {
       return <Apps />
     case 'games':
       return <Games />
+    case 'allgames':
+      return <AllGames />
     case 'store':
       return <Store />
     case 'settings':
@@ -47,6 +50,10 @@ function defaultBack(): boolean {
   const el = currentElement()
   if (screen === 'store') {
     setPlace({ screen: 'apps', focusId: null })
+    return true
+  }
+  if (screen === 'allgames') {
+    setPlace({ screen: 'games', focusId: null })
     return true
   }
   if (el && el.dataset.focusGroup !== 'rail') {
