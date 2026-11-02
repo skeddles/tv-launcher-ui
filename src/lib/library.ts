@@ -2,6 +2,8 @@
 // Steam games, plus install progress. Module-level so it survives hot updates.
 
 import { markAppOpened } from './appfront'
+import { currentElement } from './focus'
+import { removeLaunchCover, showLaunchCover } from './launchCover'
 import { useSyncExternalStore } from 'react'
 import { tv, type InstalledFlatpak, type LaunchTarget, type SteamGame } from './bridge'
 import { colorFor, hiddenApps, steamBigPicture, streaming, type Tag } from '../data/catalog'
@@ -93,11 +95,17 @@ export async function activate(tile: TileModel) {
     const ok = await install(tile.needs, tile.title)
     if (!ok) return
   }
+  // The tile being opened: the highlighted one, or its first copy on screen.
+  const focused = currentElement()
+  const el =
+    focused?.dataset.tileKey === tile.id ? focused : document.querySelector<HTMLElement>(`[data-tile-key="${CSS.escape(tile.id)}"]`)
+  showLaunchCover(el, tile.title)
   markRecent(tile.id)
   try {
     await tv.launch(tile.launch, tile.title)
     markAppOpened()
   } catch (e) {
+    removeLaunchCover()
     notify(`Couldn't open ${tile.title}: ${String(e)}`)
   }
 }

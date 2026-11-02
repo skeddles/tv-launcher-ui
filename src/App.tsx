@@ -7,6 +7,7 @@ import { tv } from './lib/bridge'
 import { currentElement, focus, pushBack, startFocusWatcher } from './lib/focus'
 import { startInput } from './lib/input'
 import { markAppOpened, startAppFront } from './lib/appfront'
+import { startLaunchCover } from './lib/launchCover'
 import { startLibrary, useLibrary } from './lib/library'
 import { startPointerWatch } from './lib/pointer'
 import { getPlace, goTo, setPlace, usePlace, type Screen } from './lib/place'
@@ -73,6 +74,7 @@ export default function App() {
 
   useEffect(() => {
     startAppFront()
+    startLaunchCover()
     startLibrary()
     const stopInput = startInput()
     const stopWatch = startFocusWatcher()
