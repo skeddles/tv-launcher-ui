@@ -9,8 +9,16 @@ import { controllerPaused } from './appfront'
 import { goTo } from './place'
 import { openMenuForFocused } from './tileMenu'
 
-const REPEAT_DELAY = 380
-const REPEAT_RATE = 110
+const REPEAT_DELAY = 380 // hold this long before a direction repeats
+const REPEAT_RATE = { left: 120, right: 120, up: 170, down: 170 } as Record<string, number> // ms per step while held
+
+// A held step waits until the last one has been drawn, so slow frames lower the
+// speed instead of building up a backlog the screen then races through.
+let drawing = false
+function afterDraw() {
+  drawing = true
+  requestAnimationFrame(() => requestAnimationFrame(() => (drawing = false)))
+}
 const STICK_THRESHOLD = 0.55
 
 export type Action = Direction | 'select' | 'back' | 'search' | 'x' | 'menu'
@@ -81,9 +89,10 @@ export function startInput(): () => void {
       dispatch(action)
       return
     }
-    if (repeatable && now - h.since > REPEAT_DELAY && now - h.lastFire > REPEAT_RATE) {
+    if (repeatable && !drawing && now - h.since > REPEAT_DELAY && now - h.lastFire > (REPEAT_RATE[action] ?? 120)) {
       h.lastFire = now
       dispatch(action, true)
+      afterDraw()
     }
   }
 
@@ -131,11 +140,21 @@ export function startInput(): () => void {
     BrowserBack: 'back',
     ContextMenu: 'menu',
   }
+  let lastKeyRepeat = 0
   function onKey(e: KeyboardEvent) {
     const action = KEYS[e.key]
     if (!action) return
     e.preventDefault()
-    dispatch(action, e.repeat)
+    if (e.repeat) {
+      // Same pacing as a held D-pad
+      const now = performance.now()
+      if (drawing || now - lastKeyRepeat < (REPEAT_RATE[action] ?? 120)) return
+      lastKeyRepeat = now
+      dispatch(action, true)
+      afterDraw()
+      return
+    }
+    dispatch(action, false)
   }
   window.addEventListener('keydown', onKey)
 

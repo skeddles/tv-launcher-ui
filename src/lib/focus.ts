@@ -17,6 +17,9 @@ import { getPlace, setPlace, subscribePlace } from './place'
 export type Direction = 'up' | 'down' | 'left' | 'right'
 
 const lastInGroup = new Map<string, string>()
+// While a direction is held, scroll instantly: a smooth scroll restarted on every
+// step falls behind and then races to catch up when the button is let go.
+let instant = false
 const backHandlers: Array<() => boolean> = []
 
 function scopeRoot(): ParentNode {
@@ -58,13 +61,14 @@ function scrollIntoView(el: HTMLElement) {
   const margin = 48
   // The first rows sit under the header: scroll fully to the top for them.
   if (anchor.dataset.scrollTop !== undefined) {
-    container.scrollTo({ top: 0 })
+    container.scrollTo({ top: 0, behavior: instant ? 'instant' : 'smooth' })
     return
   }
+  const behavior: ScrollBehavior = instant ? 'instant' : 'smooth'
   if (a.top < c.top + margin) {
-    container.scrollBy({ top: a.top - c.top - margin })
+    container.scrollBy({ top: a.top - c.top - margin, behavior })
   } else if (a.bottom > c.bottom - margin) {
-    container.scrollBy({ top: a.bottom - c.bottom + margin })
+    container.scrollBy({ top: a.bottom - c.bottom + margin, behavior })
   }
 }
 
@@ -93,7 +97,7 @@ function scrollCarousel(el: HTMLElement) {
   else if (e.right > r.right) target = current + (e.right - r.right)
   target = Math.max(0, Math.min(target, row.scrollWidth - row.clientWidth))
   carouselTarget.set(row, target)
-  row.scrollTo({ left: target, behavior: 'smooth' })
+  row.scrollTo({ left: target, behavior: instant ? 'instant' : 'smooth' })
   // A smooth scroll can be cut short (tiles added to the row mid-scroll): finish it
   if (!watchedRows.has(row)) {
     watchedRows.add(row)
@@ -119,6 +123,29 @@ function center(r: DOMRect) {
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
 }
 
+/** The items a move could land on: this row (and the rail) for left/right, this
+ *  row and the nearest rows above or below for up/down. Long pages have thousands
+ *  of tiles; measuring them all on every step is what made held buttons lag. */
+function nearby(cur: HTMLElement, dir: Direction): HTMLElement[] {
+  const root = scopeRoot()
+  const section = cur.closest<HTMLElement>('.row')
+  if (root !== document || !section || !section.parentElement) return focusables(root)
+  const rail = cur.dataset.focusGroup === 'rail' ? [] : focusables(document.querySelector('.rail') ?? document.createElement('div'))
+  if (dir === 'left' || dir === 'right') return [...focusables(section), ...rail]
+  const out = focusables(section)
+  // Next sections in that direction until one has something to land on
+  let sib: Element | null = section
+  let found = 0
+  while (found < 2 && (sib = dir === 'down' ? sib.nextElementSibling : sib.previousElementSibling)) {
+    const items = focusables(sib)
+    if (items.length) {
+      out.push(...items)
+      found++
+    }
+  }
+  return out
+}
+
 /** Move the highlight. `repeat`: the press is an auto-repeat of a held direction. */
 export function move(dir: Direction, repeat = false): boolean {
   const cur = currentElement()
@@ -130,8 +157,9 @@ export function move(dir: Direction, repeat = false): boolean {
   const c = center(r)
   let best: HTMLElement | null = null
   let bestScore = Infinity
+  instant = repeat
 
-  for (const el of focusables()) {
+  for (const el of nearby(cur, dir)) {
     if (el === cur) continue
     const er = rectOf(el)
     const ec = center(er)
@@ -196,6 +224,7 @@ export function move(dir: Direction, repeat = false): boolean {
     if (target) best = target
   }
   focus(best.dataset.focus!)
+  instant = false
   return true
 }
 
