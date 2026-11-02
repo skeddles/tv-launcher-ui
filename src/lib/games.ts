@@ -13,6 +13,7 @@ export interface RomGame {
   playedAt: number | null
   plays: number
   resumable: boolean
+  genre: string | null // row title such as "Platformers"; null when unknown (yet)
 }
 
 export interface RomSystem {
@@ -92,8 +93,8 @@ export interface GameRow {
 
 /**
  * Rows for the Games page, from the main ROMs folder only: a mix "Picked for you"
- * (leaning toward systems you play), then one row per system in an order that
- * also favours what you play. Shuffled again each time the page opens (`seed`).
+ * (leaning toward systems you play), then a row per system and per genre in an
+ * order that also favours what you play. Shuffled again each time the page opens (`seed`).
  */
 export function suggestedRows(lib: RomLibrary, seed: number, perRow = 18): GameRow[] {
   const main = lib.games.filter((g) => !g.extra && g.args)
@@ -120,14 +121,25 @@ export function suggestedRows(lib: RomLibrary, seed: number, perRow = 18): GameR
   }
   const rows: GameRow[] = [{ key: 'picked', title: 'Picked for you', games: picked }]
 
-  const systems = shuffle(
-    lib.systems.filter((sys) => main.some((g) => g.system === sys.id)),
-    seed + 7,
-  ).sort((a, b) => weight(b.id) - weight(a.id)) // stable: equal weights stay shuffled
-  // Keep the most played systems near the top but not always in the same order
-  for (const sys of systems) {
+  // Then rows by system and by genre, mixed: a fresh order each visit, with the
+  // rows holding games you play more likely to come first.
+  const candidates: Array<GameRow & { weight: number }> = []
+  for (const sys of lib.systems) {
     const games = main.filter((g) => g.system === sys.id)
-    rows.push({ key: `sys:${sys.id}`, title: sys.name, games: shuffle(games, seed + sys.id.length * 31).slice(0, perRow) })
+    if (games.length) candidates.push({ key: `sys:${sys.id}`, title: sys.name, games, weight: weight(sys.id) })
+  }
+  const genreNames = [...new Set(main.map((g) => g.genre).filter((x): x is string => Boolean(x)))]
+  for (const genre of genreNames) {
+    const games = main.filter((g) => g.genre === genre)
+    if (games.length < 3) continue // too few for a row
+    candidates.push({ key: `genre:${genre}`, title: genre, games, weight: 1 + games.reduce((t, g) => t + g.plays, 0) })
+  }
+  // Weighted shuffle: sort by random^(1/weight)
+  let r2 = seed + 13
+  const rand = () => (r2 = (r2 * 16807) % 2147483647) / 2147483647
+  const ordered = candidates.map((c) => ({ c, k: Math.pow(rand(), 1 / c.weight) })).sort((a, b) => b.k - a.k)
+  for (const { c } of ordered) {
+    rows.push({ key: c.key, title: c.title, games: shuffle(c.games, seed + c.key.length * 31).slice(0, perRow) })
   }
   return rows
 }

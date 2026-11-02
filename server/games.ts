@@ -14,6 +14,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { homedir } from 'node:os'
 import { basename, dirname, extname, join, relative } from 'node:path'
 import type { Plugin } from 'vite'
+import { genres } from './genres.ts'
 import { SYSTEMS, type SystemDef } from './systems.ts'
 
 const HOME = homedir()
@@ -40,6 +41,7 @@ export interface Game {
   playedAt: number | null // ms
   plays: number
   resumable: boolean // RetroArch has an automatic save state to continue from
+  genre: string | null // row title, e.g. "Platformers" (genres.ts); null while unknown
 }
 
 interface Found {
@@ -192,8 +194,10 @@ function markPlayed(id: string) {
 
 function list() {
   const history = readHistory()
+  const found = scan()
+  const genreOf = genres(found.map((g) => ({ id: g.id, systemId: g.sys.id, artSystems: g.sys.art, path: g.path, file: basename(g.path), extra: g.extra })))
   const coreCache = new Map<string, string | null>()
-  const games: Game[] = scan().map((g) => {
+  const games: Game[] = found.map((g) => {
     if (!coreCache.has(g.sys.id)) coreCache.set(g.sys.id, coreFor(g.sys))
     const core = coreCache.get(g.sys.id)
     const h = history[g.id]
@@ -207,6 +211,7 @@ function list() {
       playedAt: h?.at ?? null,
       plays: h?.plays ?? 0,
       resumable: h ? hasAutoState(g) : false,
+      genre: genreOf[g.id] ?? null,
     }
   })
   const systems = SYSTEMS.filter((s) => games.some((g) => g.system === s.id)).map((s) => ({ id: s.id, name: s.name }))

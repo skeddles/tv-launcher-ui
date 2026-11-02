@@ -2,11 +2,11 @@
 // folder (a fresh mix each visit, leaning toward the systems you play). Every
 // game, including ROMs Extra, is under All games.
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Header } from '../components/Header'
 import { Tile } from '../components/Tile'
 import { emulatorSettingsTile, recentlyPlayed, suggestedRows } from '../lib/games'
-import { gameTiles, romTiles, useLibrary } from '../lib/library'
+import { gameTiles, refreshRoms, romTiles, useLibrary } from '../lib/library'
 import { goTo } from '../lib/place'
 import { TileRow } from './shared'
 
@@ -29,6 +29,8 @@ export function Games() {
   const lib = useLibrary()
   // A new mix each time the page opens, kept while you're on it
   const [seed] = useState(newSeed)
+  // Genres are found in the background on the TV: pick up any new ones
+  useEffect(() => void refreshRoms(), [])
   const romsLoaded = lib.roms.games.length > 0
   const rows = useMemo(() => suggestedRows(lib.roms, seed), [lib.roms, seed])
   const hasRecent = lib.roms.games.some((g) => g.playedAt)
