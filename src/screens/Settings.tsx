@@ -1,50 +1,33 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { Adjust } from '../components/Adjust'
 import { Dialog } from '../components/Dialog'
 import { Header } from '../components/Header'
+import { Row } from '../components/Row'
+import { SettingTile } from '../components/SettingTile'
 import { accents } from '../data/catalog'
-import { tv, type DisplaySettings, type OsUpdateState, type SystemInfo } from '../lib/bridge'
+import { tv, type DisplaySettings, type OsUpdateState, type PointerSettings, type SystemInfo } from '../lib/bridge'
 import { notify } from '../lib/library'
-import { useFocused } from '../lib/focus'
-import { interceptInput } from '../lib/input'
-import { getPlace } from '../lib/place'
 import { copyText } from '../lib/pointer'
-import { setPrefs, usePrefs } from '../lib/prefs'
-
-function Item({
-  id,
-  label,
-  value,
-  onSelect,
-  isDefault,
-}: {
-  id: string
-  label: string
-  value?: React.ReactNode
-  onSelect: () => void
-  isDefault?: boolean
-}) {
-  const focused = useFocused(id)
-  return (
-    <button
-      type="button"
-      className={`list-item${focused ? ' is-focused' : ''}`}
-      data-focus={id}
-      data-focus-group="content"
-      data-focus-default={isDefault || undefined}
-      onClick={onSelect}
-    >
-      <span>{label}</span>
-      {value != null && <span className="list-item__value">{value}</span>}
-    </button>
-  )
-}
+import { setPrefs, TILE_SIZES, usePrefs } from '../lib/prefs'
 
 type Confirm = 'reboot' | 'poweroff' | 'update' | null
+type Adjusting = 'volume' | 'appSize' | 'tileSize' | 'accent' | 'pointerSpeed' | 'pointerSize' | null
+type Info = 'guide' | 'about' | null
 
 const mbText = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)} GB` : `${Math.round(n)} MB`)
 
-/** What the System update row says on the right. */
-function osUpdateValue(u: OsUpdateState | null): React.ReactNode {
+const SPEED_NAMES: Record<number, string> = { 0.5: 'Slowest', 0.75: 'Slow', 1: 'Normal', 1.5: 'Fast', 2: 'Fastest' }
+const SIZE_NAMES: Record<number, string> = { 24: 'Small', 32: 'Medium', 48: 'Large', 64: 'Extra large' }
+const NEEDS_UPDATE = 'Needs the next system update (Settings > System update)'
+
+/** The next value in `list` from `current` in direction `dir`, stopping at the ends. */
+function step<T>(list: T[], current: T, dir: -1 | 1): T {
+  const i = list.indexOf(current)
+  return list[Math.max(0, Math.min(list.length - 1, (i < 0 ? 0 : i) + dir))]
+}
+
+/** What the System update tile shows. */
+function osUpdateValue(u: OsUpdateState | null): ReactNode {
   if (!u) return '…'
   switch (u.phase) {
     case 'checking':
@@ -52,42 +35,53 @@ function osUpdateValue(u: OsUpdateState | null): React.ReactNode {
     case 'up-to-date':
       return 'Up to date'
     case 'available':
-      return u.totalMB ? `Update available · ${mbText(u.totalMB)} · Download` : 'Update available · Download'
+      return u.totalMB ? `New · ${mbText(u.totalMB)}` : 'Update available'
     case 'downloading':
       return (
-        <span className="volume" aria-label={`Downloading ${u.percent ?? 0}%`}>
+        <span className="setting-tile__progress" aria-label={`Downloading ${u.percent ?? 0}%`}>
+          <span>{u.message ?? (u.percent == null ? 'Starting…' : `${u.percent}%`)}</span>
           <span className="volume__bar" aria-hidden="true">
             <span className="volume__fill" style={{ width: `${u.percent ?? 0}%` }} />
-          </span>
-          <span className="update__text">
-            {u.message ?? (u.percent == null ? 'Starting…' : `${u.percent}% · ${mbText(u.doneMB)} of ${mbText(u.totalMB)}`)}
           </span>
         </span>
       )
     case 'ready':
-      return 'Ready · shut down to finish'
+      return 'Ready'
     case 'busy':
-      return u.message ?? 'Updating in the background…'
+      return 'Updating…'
     case 'error':
-      return u.message ?? "Couldn't update"
+      return "Couldn't update"
     default:
-      return 'Check for updates'
+      return 'Check'
   }
+}
+
+function Swatches({ accent }: { accent: string }) {
+  return (
+    <span className="swatches" aria-label={`Current ${accent}`}>
+      {accents.map((c) => (
+        <span key={c} className={`swatch${c === accent ? ' swatch--on' : ''}`} style={{ background: c }} />
+      ))}
+    </span>
+  )
 }
 
 export function Settings() {
   const accent = usePrefs((p) => p.accent)
+  const tileColumns = usePrefs((p) => p.tileColumns)
   const [info, setInfo] = useState<SystemInfo | null>(null)
   const [confirm, setConfirm] = useState<Confirm>(null)
+  const [adjusting, setAdjusting] = useState<Adjusting>(null)
+  const [showInfo, setShowInfo] = useState<Info>(null)
   const [disp, setDisp] = useState<DisplaySettings | null>(null)
   const [volume, setVolume] = useState<number | null>(null)
+  const [pointer, setPointer] = useState<PointerSettings | null>(null)
   const [osUpdate, setOsUpdate] = useState<OsUpdateState | null>(null)
-  const [pairing, setPairing] = useState<{
-    code: string
-    url: string | null
-  } | null>(null)
+  const [pairing, setPairing] = useState<{ code: string; url: string | null } | null>(null)
   const closePairing = useCallback(() => setPairing(null), [])
   const close = useCallback(() => setConfirm(null), [])
+  const closeAdjust = useCallback(() => setAdjusting(null), [])
+  const closeInfo = useCallback(() => setShowInfo(null), [])
 
   useEffect(() => {
     tv.systemInfo()
@@ -102,31 +96,56 @@ export function Settings() {
     tv.osUpdateStatus()
       .then(setOsUpdate)
       .catch(() => setOsUpdate(null))
-    const stopEvents = tv.onEvent((e) => {
+    tv.getPointer?.()
+      .then(setPointer)
+      .catch(() => setPointer(null))
+    return tv.onEvent((e) => {
       if (e.type === 'volume') setVolume(e.volume)
       if (e.type === 'os-update') setOsUpdate(e.state)
     })
-    // On the Volume row, left/right change the volume like a TV's volume bar.
-    const stopKeys = interceptInput((a) => {
-      if ((a !== 'left' && a !== 'right') || getPlace().focusId !== 'settings:volume') return false
-      void tv.changeVolume(a === 'right' ? 1 : -1)
-      return true
-    })
-    return () => {
-      stopEvents()
-      stopKeys()
-    }
   }, [])
 
-  const nextScale = async () => {
-    if (!disp) return
-    const next = disp.scales[(disp.scales.indexOf(disp.scale) + 1) % disp.scales.length]
-    setDisp({ ...disp, scale: next })
-    try {
-      await tv.setDisplay({ scale: next })
-    } catch {
-      notify("Couldn't change the app size")
-    }
+  const stepAdjust = useCallback(
+    (dir: -1 | 1) => {
+      switch (adjusting) {
+        case 'volume':
+          void tv.changeVolume(dir)
+          break
+        case 'appSize': {
+          if (!disp) return
+          const next = step(disp.scales, disp.scale, dir)
+          setDisp({ ...disp, scale: next })
+          tv.setDisplay({ scale: next }).catch(() => notify("Couldn't change the app size"))
+          break
+        }
+        case 'tileSize':
+          // Left = smaller tiles (more per row)
+          setPrefs({ tileColumns: step(TILE_SIZES, TILE_SIZES.find((t) => t.columns === tileColumns) ?? TILE_SIZES[1], dir).columns })
+          break
+        case 'accent':
+          setPrefs({ accent: accents[(accents.indexOf(accent) + dir + accents.length) % accents.length] })
+          break
+        case 'pointerSpeed':
+        case 'pointerSize': {
+          if (!pointer || !tv.setPointer) return
+          const patch =
+            adjusting === 'pointerSpeed'
+              ? { speed: step(pointer.speeds, pointer.speed, dir) }
+              : { size: step(pointer.sizes, pointer.size, dir) }
+          setPointer({ ...pointer, ...patch })
+          tv.setPointer(patch)
+            .then(setPointer)
+            .catch(() => notify("Couldn't change the pointer"))
+          break
+        }
+      }
+    },
+    [adjusting, disp, tileColumns, accent, pointer],
+  )
+
+  const adjust = (what: Exclude<Adjusting, null>) => {
+    if ((what === 'pointerSpeed' || what === 'pointerSize') && !pointer) return notify(NEEDS_UPDATE)
+    setAdjusting(what)
   }
 
   const updateAction = () => {
@@ -136,50 +155,41 @@ export function Settings() {
     else if (phase === 'unknown' || phase === 'up-to-date' || phase === 'error') void tv.osUpdateCheck().then(setOsUpdate)
   }
 
-  const nextAccent = () =>
-    setPrefs({
-      accent: accents[(accents.indexOf(accent) + 1) % accents.length],
-    })
+  const connectClaude = () =>
+    // The screens update live; the shell side can arrive later with a system update.
+    typeof tv.newPairingCode !== 'function'
+      ? notify(NEEDS_UPDATE)
+      : void tv
+          .newPairingCode()
+          .then(setPairing)
+          .catch((e: unknown) => notify(e instanceof Error ? e.message.replace(/^.*Error: /, '') : "Couldn't make a pairing code"))
+
+  const tileSizeName = TILE_SIZES.find((t) => t.columns === tileColumns)?.label ?? 'Medium'
+  const appSize = disp ? `${Math.round(disp.scale * 100)}%` : '…'
+  const speedName = pointer ? (SPEED_NAMES[pointer.speed] ?? `${pointer.speed}×`) : '—'
+  const sizeName = pointer ? (SIZE_NAMES[pointer.size] ?? `${pointer.size}px`) : '—'
 
   return (
     <>
       <Header title="Settings" />
-      <div className="list" data-scroll-anchor data-scroll-top>
-        <Item
-          id="settings:accent"
-          isDefault
-          label="Accent color"
-          onSelect={nextAccent}
-          value={
-            <span className="swatches" aria-label={`Current ${accent}`}>
-              {accents.map((c) => (
-                <span key={c} className={`swatch${c === accent ? ' swatch--on' : ''}`} style={{ background: c }} />
-              ))}
-            </span>
-          }
-        />
-        <Item
+
+      <Row first title="Picture & sound" count={4}>
+        <SettingTile
           id="settings:volume"
+          isDefault
           label="Volume"
-          onSelect={() => void tv.changeVolume(1)}
-          value={
-            <span className="volume" aria-label={`Volume ${volume ?? ''}%`}>
-              <span aria-hidden="true">◀</span>
-              <span className="volume__bar" aria-hidden="true">
-                <span className="volume__fill" style={{ width: `${volume ?? 0}%` }} />
-              </span>
-              <span className="volume__value">{volume == null ? '…' : `${volume}%`}</span>
-              <span aria-hidden="true">▶</span>
-            </span>
-          }
+          value={volume == null ? '…' : `${volume}%`}
+          onSelect={() => adjust('volume')}
         />
-        <Item
-          id="settings:scale"
-          label="App size (other apps and the pointer)"
-          onSelect={() => void nextScale()}
-          value={disp ? `${Math.round(disp.scale * 100)}%` : '…'}
-        />
-        <Item
+        <SettingTile id="settings:scale" label="App size" value={appSize} onSelect={() => adjust('appSize')} />
+        <SettingTile id="settings:tiles" label="Tile size" value={tileSizeName} onSelect={() => adjust('tileSize')} />
+        <SettingTile id="settings:accent" label="Accent color" value={<Swatches accent={accent} />} onSelect={() => adjust('accent')} />
+      </Row>
+
+      <Row title="Controller & mouse" count={4}>
+        <SettingTile id="settings:pointer-speed" label="Pointer speed" value={speedName} onSelect={() => adjust('pointerSpeed')} />
+        <SettingTile id="settings:pointer-size" label="Pointer size" value={sizeName} onSelect={() => adjust('pointerSize')} />
+        <SettingTile
           id="settings:mouse-reset"
           label="Forget mouse mode choices"
           onSelect={() => {
@@ -187,86 +197,122 @@ export function Settings() {
             notify('Mouse mode will decide automatically again for every app')
           }}
         />
-        <Item id="settings:update" label="System update" onSelect={updateAction} value={osUpdateValue(osUpdate)} />
-        <Item
-          id="settings:claude"
-          label="Connect Claude"
-          value="Show a pairing code"
-          onSelect={() =>
-            // The screens update live; the shell side arrives with the next system update.
-            typeof tv.newPairingCode !== 'function'
-              ? notify('Pairing from here needs the next system update (Settings > System update)')
-              : void tv
-                  .newPairingCode()
-                  .then(setPairing)
-                  .catch((e: unknown) => notify(e instanceof Error ? e.message.replace(/^.*Error: /, '') : "Couldn't make a pairing code"))
-          }
+        <SettingTile id="settings:guide" label="Controller guide" onSelect={() => setShowInfo('guide')} />
+      </Row>
+
+      <Row title="System" count={7}>
+        <SettingTile id="settings:update" label="System update" value={osUpdateValue(osUpdate)} onSelect={updateAction} />
+        <SettingTile id="settings:claude" label="Connect Claude" onSelect={connectClaude} />
+        <SettingTile id="settings:about" label="About" onSelect={() => setShowInfo('about')} />
+        <SettingTile id="settings:reload" label="Reload launcher screen" onSelect={() => void tv.power('reload-ui')} />
+        <SettingTile id="settings:restart" label="Restart launcher" onSelect={() => void tv.power('restart-shell')} />
+        <SettingTile id="settings:reboot" label="Restart TV PC" onSelect={() => setConfirm('reboot')} />
+        <SettingTile id="settings:poweroff" label="Shut down" onSelect={() => setConfirm('poweroff')} />
+      </Row>
+
+      {adjusting === 'volume' && (
+        <Adjust title="Volume" value={volume == null ? '…' : `${volume}%`} onStep={stepAdjust} onClose={closeAdjust} />
+      )}
+      {adjusting === 'appSize' && (
+        <Adjust
+          title="App size"
+          hint="How big other apps and the pointer look. The launcher stays the same."
+          value={appSize}
+          onStep={stepAdjust}
+          onClose={closeAdjust}
         />
-        <Item id="settings:reload" label="Reload launcher screen" onSelect={() => void tv.power('reload-ui')} />
-        <Item id="settings:restart" label="Restart launcher" onSelect={() => void tv.power('restart-shell')} />
-        <Item id="settings:reboot" label="Restart TV PC" onSelect={() => setConfirm('reboot')} />
-        <Item id="settings:poweroff" label="Shut down" onSelect={() => setConfirm('poweroff')} />
-      </div>
+      )}
+      {adjusting === 'tileSize' && (
+        <Adjust
+          title="Tile size"
+          hint="How big the tiles are on Home, Library and Settings."
+          value={`${tileSizeName} · ${tileColumns} per row`}
+          onStep={stepAdjust}
+          onClose={closeAdjust}
+        />
+      )}
+      {adjusting === 'accent' && (
+        <Adjust title="Accent color" value={<Swatches accent={accent} />} onStep={stepAdjust} onClose={closeAdjust} />
+      )}
+      {adjusting === 'pointerSpeed' && (
+        <Adjust
+          title="Pointer speed"
+          hint="How fast the controller's stick moves the pointer in mouse mode. (A USB mouse's speed can't be changed here.)"
+          value={speedName}
+          onStep={stepAdjust}
+          onClose={closeAdjust}
+        />
+      )}
+      {adjusting === 'pointerSize' && (
+        <Adjust
+          title="Pointer size"
+          hint="Applies to apps opened after the change; App size makes it bigger again."
+          value={sizeName}
+          onStep={stepAdjust}
+          onClose={closeAdjust}
+        />
+      )}
 
-      <section className="row" data-scroll-anchor>
-        <h2 className="row__title">Controller in other apps</h2>
-        <p className="muted">
-          Apps that don't read the controller get mouse mode automatically. Hold the Xbox button for a second to turn it on or off for the
-          app you're in; that choice is remembered.
-        </p>
-        <dl className="info-grid">
-          <dt>Xbox button</dt>
-          <dd>Back to Home (hold: mouse mode on/off)</dd>
-          <dt>Left stick</dt>
-          <dd>Move the pointer (hold RT for slow and precise)</dd>
-          <dt>Right stick</dt>
-          <dd>Scroll</dd>
-          <dt>A / B</dt>
-          <dd>Click / right-click (after using the D-pad: Enter / Back)</dd>
-          <dt>Y</dt>
-          <dd>Keyboard: type, then Send</dd>
-          <dt>X</dt>
-          <dd>Space (play/pause most videos)</dd>
-          <dt>D-pad</dt>
-          <dd>Arrow keys</dd>
-          <dt>Menu / View</dt>
-          <dd>Enter / Escape</dd>
-          <dt>LB / RB</dt>
-          <dd>Back / Forward</dd>
-          <dt>Menu ☰ on a launcher tile</dt>
-          <dd>Tile options (hide its name, remove from Recently Opened)</dd>
-          <dt>View + D-pad ↑↓</dt>
-          <dd>Volume (anywhere, also in the launcher)</dd>
-        </dl>
-      </section>
-
-      <section className="row" data-scroll-anchor>
-        <h2 className="row__title">About</h2>
-        {info ? (
-          <dl className="info-grid">
-            <dt>Name</dt>
-            <dd>{info.hostname}</dd>
-            <dt>UI version</dt>
-            <dd>{info.uiCommit}</dd>
-            <dt>UI source</dt>
-            <dd>
-              {info.uiSource === 'dev-server'
-                ? 'Live (updates automatically)'
-                : info.uiSource === 'fallback-build'
-                  ? 'Backup copy (live server not running)'
-                  : 'Browser'}
-            </dd>
-            <dt>System image</dt>
-            <dd>{info.imageVersion}</dd>
-            <dt>Shell</dt>
-            <dd>
-              {info.shellVersion} · Electron {info.electron} · Chromium {info.chrome}
-            </dd>
+      {showInfo === 'guide' && (
+        <Dialog title="Controller guide" onClose={closeInfo} options={[{ label: 'Done', onSelect: closeInfo }]}>
+          <p className="muted">
+            In apps that don't read the controller, mouse mode turns on by itself. Hold the Xbox button for a second to turn it on or off
+            for the app you're in; that choice is remembered.
+          </p>
+          <dl className="info-grid info-grid--dialog">
+            <dt>Xbox button</dt>
+            <dd>Back to Home (hold: mouse mode on/off)</dd>
+            <dt>Left stick</dt>
+            <dd>Move the pointer (hold RT for slow and precise)</dd>
+            <dt>Right stick</dt>
+            <dd>Scroll</dd>
+            <dt>A / B</dt>
+            <dd>Click / right-click (after using the D-pad: Enter / Back)</dd>
+            <dt>Y</dt>
+            <dd>Keyboard: type, then Send</dd>
+            <dt>X</dt>
+            <dd>Space (play/pause most videos)</dd>
+            <dt>D-pad</dt>
+            <dd>Arrow keys</dd>
+            <dt>Menu / View</dt>
+            <dd>Enter / Escape</dd>
+            <dt>LB / RB</dt>
+            <dd>Back / Forward</dd>
+            <dt>Menu ☰ on a tile</dt>
+            <dd>Tile options (hide its name, remove from Recently Opened)</dd>
+            <dt>View + D-pad ↑↓</dt>
+            <dd>Volume (anywhere, also in the launcher)</dd>
           </dl>
-        ) : (
-          <p className="muted">Loading…</p>
-        )}
-      </section>
+        </Dialog>
+      )}
+      {showInfo === 'about' && (
+        <Dialog title="About" onClose={closeInfo} options={[{ label: 'Done', onSelect: closeInfo }]}>
+          {info ? (
+            <dl className="info-grid info-grid--dialog">
+              <dt>Name</dt>
+              <dd>{info.hostname}</dd>
+              <dt>UI version</dt>
+              <dd>{info.uiCommit}</dd>
+              <dt>UI source</dt>
+              <dd>
+                {info.uiSource === 'dev-server'
+                  ? 'Live (updates automatically)'
+                  : info.uiSource === 'fallback-build'
+                    ? 'Backup copy (live server not running)'
+                    : 'Browser'}
+              </dd>
+              <dt>System image</dt>
+              <dd>{info.imageVersion}</dd>
+              <dt>Shell</dt>
+              <dd>
+                {info.shellVersion} · Electron {info.electron} · Chromium {info.chrome}
+              </dd>
+            </dl>
+          ) : (
+            <p className="muted">Loading…</p>
+          )}
+        </Dialog>
+      )}
 
       {pairing && (
         <Dialog
@@ -290,10 +336,7 @@ export function Settings() {
           message="The PC shuts down. Then press its power button: it starts with the new system. (A full shutdown keeps the TV picture from getting stuck.)"
           onClose={close}
           options={[
-            {
-              label: 'Shut down now',
-              onSelect: () => void tv.power('poweroff'),
-            },
+            { label: 'Shut down now', onSelect: () => void tv.power('poweroff') },
             {
               label: 'Check for a newer update first',
               onSelect: () => {
@@ -305,15 +348,12 @@ export function Settings() {
           ]}
         />
       )}
-      {confirm && confirm !== 'update' && (
+      {(confirm === 'reboot' || confirm === 'poweroff') && (
         <Dialog
           title={confirm === 'reboot' ? 'Restart the TV PC?' : 'Shut down?'}
           onClose={close}
           options={[
-            {
-              label: confirm === 'reboot' ? 'Restart' : 'Shut down',
-              onSelect: () => void tv.power(confirm),
-            },
+            { label: confirm === 'reboot' ? 'Restart' : 'Shut down', onSelect: () => void tv.power(confirm) },
             { label: 'Cancel', onSelect: close },
           ]}
         />

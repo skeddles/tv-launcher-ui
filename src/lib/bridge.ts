@@ -64,6 +64,13 @@ export interface OsUpdateState {
   message: string | null
 }
 
+export interface PointerSettings {
+  speed: number // controller pointer speed factor (1 = normal)
+  size: number // cursor size in px for apps (before App size scaling)
+  speeds: number[]
+  sizes: number[]
+}
+
 export interface DisplaySettings {
   scale: number // how big other apps look; the launcher itself stays the same
   scales: number[]
@@ -86,6 +93,9 @@ export interface TvBridge {
   setDisplay(opts: { scale: number }): Promise<{ scale: number }>
   /** Forget per-app mouse mode choices. */
   resetInputPrefs(): Promise<void>
+  /** Pointer speed (controller) and cursor size (apps opened afterwards). Newer shells only. */
+  getPointer?(): Promise<PointerSettings>
+  setPointer?(patch: { speed?: number; size?: number }): Promise<PointerSettings>
   /** Go back to the Steam game left running behind the launcher. False if it has closed. */
   resumeApp(): Promise<boolean>
   /** Quit that game (or close Steam for Big Picture). */
@@ -112,6 +122,7 @@ declare global {
 const mockListeners = new Set<(e: ShellEvent) => void>()
 let mockScale = 1.5
 let mockVolume = 100
+let mockPointer: PointerSettings = { speed: 1, size: 32, speeds: [0.5, 0.75, 1, 1.5, 2], sizes: [24, 32, 48, 64] }
 let mockOs: OsUpdateState = { phase: 'unknown', percent: null, doneMB: 0, totalMB: 0, message: null }
 const setMockOs = (patch: Partial<OsUpdateState>) => {
   mockOs = { ...mockOs, ...patch }
@@ -122,8 +133,7 @@ const setMockOs = (patch: Partial<OsUpdateState>) => {
 // Dev helpers: in a browser, `__tvMock.keyboard('Firefox')` opens the typing screen,
 // `__tvMock.running()` the dialog shown when the Xbox button leaves a Steam game running.
 ;(window as unknown as { __tvMock: unknown }).__tvMock = {
-  keyboard: (label = 'Firefox', password = false) =>
-    mockListeners.forEach((cb) => cb({ type: 'keyboard-request', label, password })),
+  keyboard: (label = 'Firefox', password = false) => mockListeners.forEach((cb) => cb({ type: 'keyboard-request', label, password })),
   running: (label = 'Castle Crashers', quitLabel = 'Quit game') =>
     mockListeners.forEach((cb) => cb({ type: 'app-running', label, quitLabel })),
 }
@@ -149,7 +159,13 @@ const mock: TvBridge = {
   async storeSearch(query) {
     const q = query.toLowerCase()
     const all: StoreApp[] = [
-      { appId: 'org.libretro.RetroArch', name: 'RetroArch', summary: 'Frontend for emulators, game engines and media players', gamepad: true, installed: false },
+      {
+        appId: 'org.libretro.RetroArch',
+        name: 'RetroArch',
+        summary: 'Frontend for emulators, game engines and media players',
+        gamepad: true,
+        installed: false,
+      },
       { appId: 'tv.kodi.Kodi', name: 'Kodi', summary: 'Ultimate entertainment center', gamepad: true, installed: false },
       { appId: 'org.gimp.GIMP', name: 'GIMP', summary: 'Create images and edit photographs', gamepad: false, installed: false },
     ]
@@ -198,6 +214,13 @@ const mock: TvBridge = {
     return { scale }
   },
   async resetInputPrefs() {},
+  async getPointer() {
+    return mockPointer
+  },
+  async setPointer(patch) {
+    mockPointer = { ...mockPointer, ...patch }
+    return mockPointer
+  },
   async resumeApp() {
     console.info('[mock] resume app')
     return true

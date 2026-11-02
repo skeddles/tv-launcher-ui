@@ -664,3 +664,73 @@ html:not(.pointer-active) * {
     opacity: 0.45;
   }
 }
+
+/* ---------- Settings as tiles ---------- */
+
+.setting-tile {
+  background: #1c1f24;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.setting-tile__value {
+  position: relative;
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.15;
+}
+
+.setting-tile__progress {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.setting-tile__progress .volume__bar {
+  width: 160px;
+}
+
+/* ---------- Adjusting a setting with left/right ---------- */
+
+.adjust {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 8px 0 4px;
+  padding: 20px 12px;
+  border-radius: 12px;
+  background: #0b0c0e;
+}
+
+.adjust__value {
+  flex: 1;
+  text-align: center;
+  font-size: 36px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.adjust__value .swatches {
+  justify-content: center;
+}
+
+.adjust__arrow {
+  border: 0;
+  background: transparent;
+  color: var(--icon-inactive);
+  font-size: 32px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.adjust__help {
+  text-align: center;
+  margin: 8px 0 20px;
+}
+
+.info-grid--dialog {
+  grid-template-columns: 220px 1fr;
+  margin: 8px 0 24px;
+  font-size: 19px;
+}
