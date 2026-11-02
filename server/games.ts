@@ -253,7 +253,7 @@ function deleteGame(g: Found): string[] {
   const deleted: string[] = []
   for (const f of new Set(files)) {
     const rel = relative(GAMES, f)
-    if (!(rel.startsWith('ROMs/') || rel.startsWith('ROMs Extra/')) || rel.includes('..')) continue
+    if (!(rel.startsWith('ROMs/') || rel.startsWith('ROMs Extra/')) || rel.split('/').includes('..')) continue
     try {
       unlinkSync(f)
       deleted.push(rel)
