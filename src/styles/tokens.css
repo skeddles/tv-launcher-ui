@@ -3,6 +3,11 @@
 :root {
   --bg: #111316;
   --rail-bg: #0b0c0e;
+  /* Surfaces made from the background colour (Settings > Background color) */
+  --tile-bg: color-mix(in srgb, var(--bg) 90%, #ffffff); /* tiles, rows, fields */
+  --raised-bg: color-mix(in srgb, var(--bg) 84%, #ffffff); /* keys, messages */
+  --panel-bg: color-mix(in srgb, var(--bg) 94%, #ffffff); /* dialogs */
+  --sunken-bg: color-mix(in srgb, var(--bg) 55%, #000000); /* boxes inside dialogs */
   --text: #e8eaed;
   --text-secondary: #a9aeb6;
   --icon-inactive: #8a9099;

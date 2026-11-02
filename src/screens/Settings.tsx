@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Adjust } from '../components/Adjust'
+import { BackgroundPicker } from '../components/BackgroundPicker'
 import { Dialog } from '../components/Dialog'
 import { Header } from '../components/Header'
 import { Row } from '../components/Row'
@@ -126,11 +127,6 @@ export function Settings() {
         case 'accent':
           setPrefs({ accent: accents[(accents.indexOf(accent) + dir + accents.length) % accents.length] })
           break
-        case 'background': {
-          const list = BACKGROUNDS.map((b) => b.color)
-          setPrefs({ background: list[(Math.max(0, list.indexOf(background)) + dir + list.length) % list.length] })
-          break
-        }
         case 'pointerSpeed':
         case 'pointerSize': {
           if (!pointer || !tv.setPointer) return
@@ -146,7 +142,7 @@ export function Settings() {
         }
       }
     },
-    [adjusting, disp, tileColumns, accent, background, pointer],
+    [adjusting, disp, tileColumns, accent, pointer],
   )
 
   const adjust = (what: Exclude<Adjusting, null>) => {
@@ -170,7 +166,12 @@ export function Settings() {
           .then(setPairing)
           .catch((e: unknown) => notify(e instanceof Error ? e.message.replace(/^.*Error: /, '') : "Couldn't make a pairing code"))
 
-  const backgroundName = BACKGROUNDS.find((b) => b.color === background)?.label ?? 'Charcoal'
+  const backgroundName = (
+    <span className="bg-value">
+      <span className="bg-value__swatch" style={{ background }} />
+      {BACKGROUNDS.find((b) => b.color.toUpperCase() === background.toUpperCase())?.label ?? 'Custom'}
+    </span>
+  )
   const tileSizeName = TILE_SIZES.find((t) => t.columns === tileColumns)?.label ?? 'Medium'
   const appSize = disp ? `${Math.round(disp.scale * 100)}%` : '…'
   const speedName = pointer ? (SPEED_NAMES[pointer.speed] ?? `${pointer.speed}×`) : '—'
@@ -243,15 +244,7 @@ export function Settings() {
       {adjusting === 'accent' && (
         <Adjust title="Accent color" value={<Swatches accent={accent} />} onStep={stepAdjust} onClose={closeAdjust} />
       )}
-      {adjusting === 'background' && (
-        <Adjust
-          title="Background color"
-          hint="The launcher's background. You can see it change behind this box."
-          value={backgroundName}
-          onStep={stepAdjust}
-          onClose={closeAdjust}
-        />
-      )}
+      {adjusting === 'background' && <BackgroundPicker onClose={closeAdjust} />}
       {adjusting === 'pointerSpeed' && (
         <Adjust
           title="Pointer speed"

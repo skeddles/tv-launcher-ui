@@ -94,7 +94,7 @@ export const streaming: CatalogItem[] = [
 export const steamBigPicture: CatalogItem = {
   id: 'steam-bigpicture',
   title: 'Steam Big Picture',
-  color: '#1B2838',
+  color: 'var(--tile-bg)',
   tags: ['games'],
   launch: { kind: 'steam-bigpicture' },
 }
@@ -118,12 +118,10 @@ export const controllerFriendly: string[] = [
 // Flatpaks that are part of the plumbing, hidden from the Apps row.
 export const hiddenApps = new Set<string>(['com.google.Chrome', 'com.valvesoftware.Steam'])
 
-// Tile colors for apps without artwork, picked by a hash of the id.
-const palette = ['#2E3A52', '#4A3526', '#3A3A3A', '#4D2A2A', '#2C3E30', '#45402A', '#233B4A', '#36284A', '#203E46', '#3B2F2A']
-export function colorFor(id: string): string {
-  let h = 0
-  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0
-  return palette[h % palette.length]
+// Tiles for apps without artwork use a shade of the background colour
+// (Settings > Background color), so icons sit on a matching backdrop.
+export function colorFor(_id: string): string {
+  return 'var(--tile-bg)'
 }
 
 export const accents = ['#4F8EF7', '#E5484D', '#30A46C', '#F5A524']

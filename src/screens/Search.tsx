@@ -25,7 +25,7 @@ export function Search() {
         <>
           <TileRow title="On this TV" tiles={matches} empty={`Nothing installed matches “${text}”.`} />
           <Row title="More" count={1}>
-            <Tile id="search:store" title={`Find “${text}” in the App Store`} color="#1C2A44" onSelect={() => {
+            <Tile id="search:store" title={`Find “${text}” in the App Store`} color="var(--tile-bg)" onSelect={() => {
                 setPlace({ storeQuery: text.trim() })
                 goTo('store')
               }}

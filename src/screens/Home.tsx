@@ -6,7 +6,7 @@ import { usePrefs } from '../lib/prefs'
 import { TileRow } from './shared'
 
 export function StoreTile({ row }: { row: string }) {
-  return <Tile id={`${row}:store`} title="App Store" color="#1C2A44" onSelect={() => goTo('store')} />
+  return <Tile id={`${row}:store`} title="App Store" color="var(--tile-bg)" onSelect={() => goTo('store')} />
 }
 
 export function Home() {

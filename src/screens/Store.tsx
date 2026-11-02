@@ -88,7 +88,7 @@ export function Store() {
         <Tile
           id="store:search"
           title={query ? `Search: ${query}` : 'Search for an app'}
-          color="#1C2A44"
+          color="var(--tile-bg)"
           isDefault={!query}
           onSelect={() => {
             setDraft(query)

@@ -1,6 +1,7 @@
 // Preferences that should survive reboots (localStorage), plus "recently opened".
 
 import { useSyncExternalStore } from 'react'
+import { isHex } from './color'
 
 export interface TileOptions {
   showTitle?: boolean // unset = the default (hidden for logo tiles, shown otherwise)
@@ -53,7 +54,8 @@ export function markRecent(id: string) {
   setPrefs({ recent: [id, ...prefs.recent.filter((r) => r !== id)].slice(0, 12) })
 }
 
-// Dark backgrounds only: the launcher's text and tiles are made for a dark page.
+// Presets for Settings > Background color (any dark colour can be picked too).
+// Dark only: the launcher's text is made for a dark page.
 // The side rail is drawn a little darker than the page, whatever the colour.
 export const BACKGROUNDS: Array<{ color: string; label: string }> = [
   { color: '#111316', label: 'Charcoal' },
@@ -76,7 +78,8 @@ export function applyAccent() {
   document.documentElement.style.setProperty('--accent', prefs.accent)
   const cols = TILE_SIZES.some((t) => t.columns === prefs.tileColumns) ? prefs.tileColumns : 6
   document.documentElement.style.setProperty('--tile-columns', String(cols))
-  const bg = BACKGROUNDS.some((b) => b.color === prefs.background) ? prefs.background : BACKGROUNDS[0].color
+  // Any colour from the picker; brightness is capped there so text stays readable
+  const bg = isHex(prefs.background) ? prefs.background : BACKGROUNDS[0].color
   document.documentElement.style.setProperty('--bg', bg)
   document.documentElement.style.setProperty('--rail-bg', `color-mix(in srgb, ${bg} 65%, #000000)`)
 }
