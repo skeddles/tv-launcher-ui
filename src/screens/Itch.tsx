@@ -1,5 +1,6 @@
 // itch.io store: games for Linux that support a gamepad, from itch.io's own lists
-// (popular, top rated, free, by genre...). Rows load more as you scroll right.
+// (popular, top rated, by tag...), at least half of the rows free games only.
+// Rows load more as you scroll right; more rows appear as you scroll down.
 // Picking a game offers to get it in the itch app, which signs in, buys and
 // downloads; games it installed show at the top and on the Games page.
 
@@ -15,7 +16,7 @@ import {
   browseItch,
   installedItchGames,
   ITCH_APP,
-  ITCH_ROWS,
+  itchRows,
   itchGameId,
   itchInstall,
   itchPage,
@@ -23,32 +24,37 @@ import {
   openInItch,
   type InstalledItchGame,
   type ItchGame,
+  type ItchRowDef,
 } from '../lib/itch'
+
+const FIRST_ROWS = 6
+const MORE_ROWS = 4
 
 function priceBadge(g: ItchGame): string {
   if (g.free) return 'Free'
   return g.sale ? `${g.price} (−${g.sale}%)` : g.price
 }
 
-function ItchRow({ title, sort, genre, first, onPick }: { title: string; sort?: string; genre?: string; first?: boolean; onPick: (g: ItchGame) => void }) {
+function ItchRow({ row, first, onPick }: { row: ItchRowDef; first?: boolean; onPick: (g: ItchGame) => void }) {
+  const { title } = row
   const [games, setGames] = useState<ItchGame[] | null>(null)
   const page = useRef(1)
   const busy = useRef(false)
   const done = useRef(false)
   useEffect(() => {
     let live = true
-    browseItch(sort, genre, 1)
+    browseItch(row, 1)
       .then((g) => live && setGames(g))
       .catch(() => live && setGames([]))
     return () => {
       live = false
     }
-  }, [sort, genre])
+  }, [row])
   const more = useCallback(() => {
     if (busy.current || done.current) return
     busy.current = true
     page.current += 1
-    browseItch(sort, genre, page.current)
+    browseItch(row, page.current)
       .then((next) => {
         if (next.length === 0 && page.current > 6) done.current = true
         setGames((cur) => {
@@ -58,7 +64,7 @@ function ItchRow({ title, sort, genre, first, onPick }: { title: string; sort?: 
       })
       .catch(() => (done.current = true))
       .finally(() => (busy.current = false))
-  }, [sort, genre])
+  }, [row])
   // The page opens before any list has arrived: move onto the first game once it's here
   const loaded = Boolean(games?.length)
   useEffect(() => {
@@ -119,6 +125,23 @@ export function Itch() {
   const [picked, setPicked] = useState<ItchGame | null>(null)
   const close = useCallback(() => setPicked(null), [])
   const appReady = isInstalled(ITCH_APP)
+  // A new order of rows each visit; a few at a time as you scroll down (itch.io
+  // refuses many lists at once)
+  const [rows] = useState(() => itchRows())
+  const [shown, setShown] = useState(FIRST_ROWS)
+  const sentinel = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = sentinel.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setShown((n) => Math.min(rows.length, n + MORE_ROWS))
+      },
+      { root: el.closest('[data-scroll]'), rootMargin: '0px 0px 900px 0px' },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [rows, shown])
 
   const go = async (g: ItchGame, what: 'install' | 'page') => {
     setPicked(null)
@@ -138,9 +161,10 @@ export function Itch() {
         <p className="muted">Games install through the itch app; picking one installs the app first. Sign in to itch.io in it once.</p>
       )}
       <ItchInstalledRow first />
-      {ITCH_ROWS.map((r, i) => (
-        <ItchRow key={r.title} title={r.title} sort={r.sort} genre={r.genre} first={i === 0} onPick={setPicked} />
+      {rows.slice(0, shown).map((r, i) => (
+        <ItchRow key={r.title} row={r} first={i === 0} onPick={setPicked} />
       ))}
+      <div ref={sentinel} aria-hidden="true" style={{ height: 1 }} />
       <p className="muted attribution">Games for Linux with gamepad support, from itch.io's browse lists.</p>
       {picked && (
         <Dialog

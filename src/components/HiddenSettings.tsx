@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { DOMAIN_NAME, hide, unhide, useHidden, type Domain, type HiddenRule } from '../lib/hidden'
-import { ITCH_ROWS } from '../lib/itch'
+import { ITCH_TAGS } from '../lib/itch'
 import { useLibrary } from '../lib/library'
 import { netflixCatalog } from '../lib/netflixRows'
 import { catalog } from '../lib/plexRows'
@@ -33,7 +33,7 @@ function useGenres(open: boolean): Record<Domain, string[]> {
     }
   }, [open])
   const games = lib.roms.games.map((g) => g.genre).filter((g): g is string => Boolean(g))
-  const itch = ITCH_ROWS.filter((r) => r.genre).map((r) => r.title)
+  const itch = ITCH_TAGS.filter((t) => t.genre).map((t) => t.title)
   const unique = (names: string[]) => {
     const all = new Map<string, string>()
     for (const g of names) if (!all.has(g.toLowerCase())) all.set(g.toLowerCase(), g)

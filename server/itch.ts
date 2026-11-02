@@ -4,7 +4,7 @@
 // what this reads; its pages don't allow requests from another site, hence the
 // dev server in between.
 //
-//   GET /itch-api/browse?sort=top-rated&genre=platformer&page=1   -> games
+//   GET /itch-api/browse?sort=top-rated&free=1&tag=pixel-art&page=1  -> games
 //   GET /itch-api/game?url=https://author.itch.io/game             -> { id, ... }
 //   GET /itch-api/installed                                         -> games installed by the itch app
 
@@ -14,10 +14,9 @@ import { join } from 'node:path'
 import type { Plugin } from 'vite'
 
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) tvlauncher/0.1'
-const SORTS = new Set(['', 'top-rated', 'new-and-popular', 'newest', 'free', 'top-sellers', 'on-sale'])
-// itch.io tags (tag-<name>); its genre- filters only cover some genres and
-// quietly fall back to the unfiltered list for the rest
-const GENRES = new Set(['action', 'adventure', 'platformer', 'puzzle', 'rpg', 'racing', 'fighting', 'shooter', 'rhythm', 'strategy', 'simulation', 'sports', 'survival', 'horror', 'visual-novel', 'card-game'])
+const SORTS = new Set(['', 'top-rated', 'new-and-popular', 'newest', 'top-sellers', 'on-sale'])
+// Any itch.io tag (tag-<name>, e.g. "pixel-art", "roguelike", "racing")
+const TAG = /^[a-z0-9][a-z0-9-]{0,40}$/
 
 export interface ItchGame {
   url: string
@@ -98,21 +97,26 @@ async function itchFetch(url: string): Promise<string> {
   }
 }
 
-/** The list's title says which filter itch.io applied: "Top Racing games for Linux…". A
- *  filter it didn't know gives the unfiltered list ("Top games for…"): treat that as empty. */
-function filterApplied(xml: string): boolean {
-  const title = /<title>([^<]*)<\/title>/.exec(xml)?.[1] ?? ''
+/** The list's title says which tag itch.io applied: "Top Racing games for Linux…" or
+ *  "Top free games for Linux… tagged Pixel Art". A tag it doesn't know gives the
+ *  unfiltered list ("Top games for…"): treat that as empty. */
+function tagApplied(xml: string): boolean {
+  const title = (/<title>([^<]*)<\/title>/.exec(xml)?.[1] ?? '').replace(/&amp;/g, '&')
+  if (/ tagged /i.test(title)) return true
   const before = title.split(/ games for /i)[0] ?? ''
-  const rest = before.replace(/^(Top rated|Top free|Top selling|New and popular|Newest|On sale|Top|Free)\b/i, '').trim()
+  const rest = before
+    .replace(/^(Top rated|Top selling|New & popular|New and popular|Newest|On sale|Top)\b/i, '')
+    .replace(/\bfree\b/i, '')
+    .trim()
   return rest.length > 0
 }
 
-function browse(sort: string, genre: string, page: number): Promise<ItchGame[]> {
-  const parts = ['games', sort, genre && `tag-${genre}`, 'platform-linux', 'input-gamepad'].filter(Boolean)
+function browse(sort: string, free: boolean, tag: string, page: number): Promise<ItchGame[]> {
+  const parts = ['games', sort, free && 'price-free', tag && `tag-${tag}`, 'platform-linux', 'input-gamepad'].filter(Boolean)
   const url = `https://itch.io/${parts.join('/')}.xml${page > 1 ? `?page=${page}` : ''}`
   const hit = cache.get(url)
   if (hit && Date.now() - hit.at < 30 * 60_000) return hit.data
-  const data = itchFetch(url).then((xml) => (genre && !filterApplied(xml) ? [] : parse(xml)))
+  const data = itchFetch(url).then((xml) => (tag && !tagApplied(xml) ? [] : parse(xml)))
   data.catch(() => cache.delete(url))
   cache.set(url, { at: Date.now(), data })
   return data
@@ -165,11 +169,13 @@ async function handle(req: Req, res: Res, next: () => void) {
   const u = new URL(url, 'http://localhost')
   try {
     if (u.pathname === '/itch-api/browse') {
-      const sort = u.searchParams.get('sort') ?? ''
-      const genre = u.searchParams.get('genre') ?? ''
+      let sort = u.searchParams.get('sort') ?? ''
+      let free = u.searchParams.get('free') === '1'
+      if (sort === 'free') [sort, free] = ['', true] // older pages
+      const tag = u.searchParams.get('tag') ?? u.searchParams.get('genre') ?? ''
       const page = Math.max(1, Math.min(50, Number(u.searchParams.get('page')) || 1))
-      if (!SORTS.has(sort) || (genre && !GENRES.has(genre))) return json(res, 400, { error: 'unknown list' })
-      return json(res, 200, await browse(sort, genre, page))
+      if (!SORTS.has(sort) || (tag && !TAG.test(tag))) return json(res, 400, { error: 'unknown list' })
+      return json(res, 200, await browse(sort, free, tag, page))
     }
     if (u.pathname === '/itch-api/game') return json(res, 200, await gameInfo(u.searchParams.get('url') ?? ''))
     if (u.pathname === '/itch-api/installed') return json(res, 200, await installed())
