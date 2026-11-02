@@ -5,7 +5,7 @@ import { markAppOpened } from './appfront'
 import { currentElement } from './focus'
 import { removeLaunchCover, showLaunchCover } from './launchCover'
 import { useSyncExternalStore } from 'react'
-import { tv, type InstalledFlatpak, type LaunchTarget, type SteamGame } from './bridge'
+import { tv, type InstalledFlatpak, type LaunchTarget, type PlexHome, type PlexItem, type SteamGame } from './bridge'
 import { colorFor, hiddenApps, steamBigPicture, streaming, type Tag } from '../data/catalog'
 import { markRecent } from './prefs'
 
@@ -20,7 +20,9 @@ export interface TileModel {
   icon?: string
   logo?: string // Wikimedia Commons file name (see catalog.ts)
   logoTone?: 'white' | 'invert'
-  kind: 'service' | 'app' | 'game'
+  subtitle?: string
+  progress?: number | null // percent watched (Plex)
+  kind: 'service' | 'app' | 'game' | 'media'
 }
 
 interface LibraryState {
@@ -29,9 +31,10 @@ interface LibraryState {
   games: SteamGame[]
   installing: Record<string, number> // appId -> percent
   notice: string | null
+  plex: PlexHome | null // null: not signed in to Plex, or not loaded yet
 }
 
-let state: LibraryState = { loaded: false, flatpaks: [], games: [], installing: {}, notice: null }
+let state: LibraryState = { loaded: false, flatpaks: [], games: [], installing: {}, notice: null, plex: null }
 const listeners = new Set<() => void>()
 let noticeTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -54,16 +57,42 @@ export async function refreshLibrary() {
   set({ loaded: true, flatpaks, games })
 }
 
+/** Plex rows on Home: on start, every 5 minutes, and after an app closes (you may have watched something). */
+export async function refreshPlex() {
+  if (!tv.plexHome) return
+  const plex = await tv.plexHome().catch(() => null)
+  set({ plex })
+}
+
+export function plexTiles(items: PlexItem[]): TileModel[] {
+  return items.map((m) => ({
+    id: `plex:${m.ratingKey}`,
+    title: m.title,
+    subtitle: m.subtitle,
+    color: 'var(--tile-bg)',
+    tags: [],
+    image: m.image ?? undefined,
+    progress: m.progress,
+    launch: { kind: 'plex' as const, ratingKey: m.ratingKey },
+    kind: 'media' as const,
+  }))
+}
+
 let started = false
 export function startLibrary() {
   if (started) return
   started = true
   void refreshLibrary()
+  void refreshPlex()
+  setInterval(() => void refreshPlex(), 5 * 60 * 1000)
   tv.onEvent((e) => {
     if (e.type === 'install-progress') set({ installing: { ...state.installing, [e.appId]: e.percent } })
     if (e.type === 'notice') notify(e.message)
     if (e.type === 'volume' && e.volume != null) notify(`Volume ${e.volume}%`)
-    if (e.type === 'app-exited' || e.type === 'web-closed') void refreshLibrary()
+    if (e.type === 'app-exited' || e.type === 'web-closed') {
+      void refreshLibrary()
+      void refreshPlex()
+    }
   })
 }
 
@@ -100,7 +129,7 @@ export async function activate(tile: TileModel) {
   const el =
     focused?.dataset.tileKey === tile.id ? focused : document.querySelector<HTMLElement>(`[data-tile-key="${CSS.escape(tile.id)}"]`)
   showLaunchCover(el, tile.title)
-  markRecent(tile.id)
+  if (tile.kind !== 'media') markRecent(tile.id) // Recently Opened is for apps
   try {
     await tv.launch(tile.launch, tile.title)
     markAppOpened()

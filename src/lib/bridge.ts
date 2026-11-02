@@ -8,6 +8,21 @@ export type LaunchTarget =
   | { kind: 'flatpak'; appId: string; args?: string[] }
   | { kind: 'steam'; appId: string }
   | { kind: 'steam-bigpicture' }
+  | { kind: 'plex'; ratingKey: string } // a show or movie, started in Plex
+
+export interface PlexItem {
+  ratingKey: string
+  type: string // movie, episode, season, ...
+  title: string
+  subtitle: string
+  image: string | null
+  progress: number | null // percent watched
+}
+
+export interface PlexHome {
+  continueWatching: PlexItem[]
+  recentlyAdded: PlexItem[]
+}
 
 export interface InstalledFlatpak {
   appId: string
@@ -102,6 +117,8 @@ export interface TvBridge {
   quitApp(): Promise<boolean>
   /** System image update: current state, check for one, download one (applies at next start). */
   osUpdateStatus(): Promise<OsUpdateState>
+  /** Continue watching / recently added from the Plex server; null when Plex isn't signed in. Newer shells only. */
+  plexHome?(): Promise<PlexHome | null>
   osUpdateCheck(): Promise<OsUpdateState>
   osUpdateDownload(): Promise<OsUpdateState>
   /** A new one-time code for connecting Claude to this PC, and the connector URL to add in Claude. */
@@ -227,6 +244,24 @@ const mock: TvBridge = {
   },
   async newPairingCode() {
     return { code: 'K7QX-4MZP-H9RA', url: 'https://tv-pc.example.ts.net/mcp' }
+  },
+  async plexHome() {
+    const item = (n: number, title: string, subtitle: string, progress: number | null): PlexItem => ({
+      ratingKey: String(n),
+      type: 'movie',
+      title,
+      subtitle,
+      image: null,
+      progress,
+    })
+    return {
+      continueWatching: [
+        item(1, 'Brooklyn Nine-Nine', 'S3E18 · Cheddar', 63),
+        item(2, 'Soul', '2020', 9),
+        item(3, 'The Two Towers', '2002', 43),
+      ],
+      recentlyAdded: [item(4, 'Thor: Love and Thunder', '2022', null), item(5, 'Severance', 'Season 1', null)],
+    }
   },
   async osUpdateStatus() {
     return mockOs

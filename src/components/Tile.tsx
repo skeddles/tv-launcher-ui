@@ -12,13 +12,28 @@ export interface TileProps {
   logoTone?: 'white' | 'invert'
   // Tile id for per-tile options (Menu ☰ / right-click); tiles without one have no options
   optionsKey?: string
+  subtitle?: string // a second line under the name (e.g. episode)
   badge?: string
   progress?: number // 0-100; shows the accent bar along the bottom
   isDefault?: boolean
   onSelect: () => void
 }
 
-export function Tile({ id, title, color, image, icon, logo, logoTone, optionsKey, badge, progress, isDefault, onSelect }: TileProps) {
+export function Tile({
+  id,
+  title,
+  color,
+  image,
+  icon,
+  logo,
+  logoTone,
+  optionsKey,
+  subtitle,
+  badge,
+  progress,
+  isDefault,
+  onSelect,
+}: TileProps) {
   const focused = useFocused(id)
   const options = useTileOptions(optionsKey ?? '')
   const [imageFailed, setImageFailed] = useState(false)
@@ -53,7 +68,12 @@ export function Tile({ id, title, color, image, icon, logo, logoTone, optionsKey
       {showImage && <img className="tile__image" src={image} alt="" onError={() => setImageFailed(true)} />}
       {showIcon && <img className="tile__icon" src={icon} alt="" onError={() => setIconFailed(true)} />}
       {showImage && showTitle && <span className="tile__shade" aria-hidden="true" />}
-      {showTitle && <span className="tile__title">{title}</span>}
+      {showTitle && (
+        <span className="tile__title">
+          {title}
+          {subtitle && <span className="tile__subtitle">{subtitle}</span>}
+        </span>
+      )}
       {badge && <span className="tile__badge">{badge}</span>}
       {progress != null && (
         <span className="tile__progress" aria-hidden="true">

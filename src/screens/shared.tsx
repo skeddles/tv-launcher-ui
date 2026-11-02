@@ -38,7 +38,8 @@ export function TileRow({
             logoTone={t.logoTone}
             optionsKey={t.id}
             badge={progress != null ? 'Installing' : missing ? 'Install' : undefined}
-            progress={progress}
+            progress={progress ?? t.progress ?? undefined}
+            subtitle={t.subtitle}
             isDefault={first && i === 0}
             onSelect={() => void activate(t)}
           />

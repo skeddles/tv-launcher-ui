@@ -886,3 +886,13 @@ html:not(.pointer-active) * {
 .rail__label {
   flex-shrink: 0;
 }
+
+.tile__subtitle {
+  display: block;
+  font-size: 16px;
+  font-weight: 500;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
