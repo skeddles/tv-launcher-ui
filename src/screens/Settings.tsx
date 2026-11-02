@@ -8,10 +8,10 @@ import { accents } from '../data/catalog'
 import { tv, type DisplaySettings, type OsUpdateState, type PointerSettings, type SystemInfo } from '../lib/bridge'
 import { notify } from '../lib/library'
 import { copyText } from '../lib/pointer'
-import { setPrefs, TILE_SIZES, usePrefs } from '../lib/prefs'
+import { BACKGROUNDS, setPrefs, TILE_SIZES, usePrefs } from '../lib/prefs'
 
 type Confirm = 'reboot' | 'poweroff' | 'update' | null
-type Adjusting = 'volume' | 'appSize' | 'tileSize' | 'accent' | 'pointerSpeed' | 'pointerSize' | null
+type Adjusting = 'volume' | 'appSize' | 'tileSize' | 'accent' | 'background' | 'pointerSpeed' | 'pointerSize' | null
 type Info = 'guide' | 'about' | null
 
 const mbText = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)} GB` : `${Math.round(n)} MB`)
@@ -69,6 +69,7 @@ function Swatches({ accent }: { accent: string }) {
 export function Settings() {
   const accent = usePrefs((p) => p.accent)
   const tileColumns = usePrefs((p) => p.tileColumns)
+  const background = usePrefs((p) => p.background)
   const [info, setInfo] = useState<SystemInfo | null>(null)
   const [confirm, setConfirm] = useState<Confirm>(null)
   const [adjusting, setAdjusting] = useState<Adjusting>(null)
@@ -125,6 +126,11 @@ export function Settings() {
         case 'accent':
           setPrefs({ accent: accents[(accents.indexOf(accent) + dir + accents.length) % accents.length] })
           break
+        case 'background': {
+          const list = BACKGROUNDS.map((b) => b.color)
+          setPrefs({ background: list[(Math.max(0, list.indexOf(background)) + dir + list.length) % list.length] })
+          break
+        }
         case 'pointerSpeed':
         case 'pointerSize': {
           if (!pointer || !tv.setPointer) return
@@ -140,7 +146,7 @@ export function Settings() {
         }
       }
     },
-    [adjusting, disp, tileColumns, accent, pointer],
+    [adjusting, disp, tileColumns, accent, background, pointer],
   )
 
   const adjust = (what: Exclude<Adjusting, null>) => {
@@ -164,6 +170,7 @@ export function Settings() {
           .then(setPairing)
           .catch((e: unknown) => notify(e instanceof Error ? e.message.replace(/^.*Error: /, '') : "Couldn't make a pairing code"))
 
+  const backgroundName = BACKGROUNDS.find((b) => b.color === background)?.label ?? 'Charcoal'
   const tileSizeName = TILE_SIZES.find((t) => t.columns === tileColumns)?.label ?? 'Medium'
   const appSize = disp ? `${Math.round(disp.scale * 100)}%` : '…'
   const speedName = pointer ? (SPEED_NAMES[pointer.speed] ?? `${pointer.speed}×`) : '—'
@@ -173,7 +180,7 @@ export function Settings() {
     <>
       <Header title="Settings" />
 
-      <Row first title="Picture & sound" count={4}>
+      <Row first title="Picture & sound" count={5}>
         <SettingTile
           id="settings:volume"
           isDefault
@@ -184,6 +191,7 @@ export function Settings() {
         <SettingTile id="settings:scale" label="App size" value={appSize} onSelect={() => adjust('appSize')} />
         <SettingTile id="settings:tiles" label="Tile size" value={tileSizeName} onSelect={() => adjust('tileSize')} />
         <SettingTile id="settings:accent" label="Accent color" value={<Swatches accent={accent} />} onSelect={() => adjust('accent')} />
+        <SettingTile id="settings:background" label="Background color" value={backgroundName} onSelect={() => adjust('background')} />
       </Row>
 
       <Row title="Controller & mouse" count={4}>
@@ -234,6 +242,15 @@ export function Settings() {
       )}
       {adjusting === 'accent' && (
         <Adjust title="Accent color" value={<Swatches accent={accent} />} onStep={stepAdjust} onClose={closeAdjust} />
+      )}
+      {adjusting === 'background' && (
+        <Adjust
+          title="Background color"
+          hint="The launcher's background. You can see it change behind this box."
+          value={backgroundName}
+          onStep={stepAdjust}
+          onClose={closeAdjust}
+        />
       )}
       {adjusting === 'pointerSpeed' && (
         <Adjust
