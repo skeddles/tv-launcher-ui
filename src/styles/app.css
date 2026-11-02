@@ -880,3 +880,9 @@ html:not(.pointer-active) * {
 .setting-tile .tile__title {
   order: -1;
 }
+
+/* Icons keep their size in the narrow rail; the labels are clipped instead */
+.rail__button svg,
+.rail__label {
+  flex-shrink: 0;
+}
