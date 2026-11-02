@@ -303,12 +303,18 @@ export function Settings() {
       {showInfo === 'guide' && (
         <Dialog title="Controller guide" onClose={closeInfo} options={[{ label: 'Done', onSelect: closeInfo }]}>
           <p className="muted">
-            In apps that don't read the controller, mouse mode turns on by itself. Hold the Xbox button for a second to turn it on or off
-            for the app you're in; that choice is remembered.
+            In apps that don't read the controller, mouse mode turns on by itself. Shortcuts that work in any app all start with holding
+            View (the small left button), so they can't be pressed by accident in a game.
           </p>
           <dl className="info-grid info-grid--dialog">
             <dt>Xbox button</dt>
-            <dd>Back to Home (hold: mouse mode on/off)</dd>
+            <dd>Back to Home</dd>
+            <dt>View + D-pad ↑↓</dt>
+            <dd>Volume (anywhere, also in the launcher)</dd>
+            <dt>View + X</dt>
+            <dd>Mouse mode on/off for the app you're in (remembered)</dd>
+            <dt>View + Y</dt>
+            <dd>On-screen keyboard: type into the app you're in</dd>
             <dt>Left stick</dt>
             <dd>Move the pointer (hold RT for slow and precise)</dd>
             <dt>Right stick</dt>
@@ -322,13 +328,11 @@ export function Settings() {
             <dt>D-pad</dt>
             <dd>Arrow keys</dd>
             <dt>Menu / View</dt>
-            <dd>Enter / Escape</dd>
+            <dd>Enter / Escape (mouse mode)</dd>
             <dt>LB / RB</dt>
             <dd>Back / Forward</dd>
             <dt>Menu ☰ on a tile</dt>
             <dd>Tile options (hide its name, remove from Recently Opened)</dd>
-            <dt>View + D-pad ↑↓</dt>
-            <dd>Volume (anywhere, also in the launcher)</dd>
           </dl>
         </Dialog>
       )}
