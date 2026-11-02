@@ -1,6 +1,8 @@
 // Opening an app: its tile grows to fill the screen and stays until the app's
-// window covers it (the launcher sits behind the app), so a slow app doesn't
-// look like nothing happened. Removed when the launcher is back in front.
+// window covers it, so a slow app doesn't look like nothing happened. Removed as
+// soon as the app's window takes the keyboard focus from the launcher (it covers
+// the screen from then on), so it isn't seen again when the app closes; and,
+// failing that, when the launcher is back in front.
 
 import { tv } from './bridge'
 
@@ -58,6 +60,8 @@ let started = false
 export function startLaunchCover() {
   if (started) return
   started = true
+  // The app's window appeared and took focus: the cover's job is done.
+  window.addEventListener('blur', () => removeLaunchCover(true))
   tv.onEvent((e) => {
     // The launcher is in front again (the app ended or never started, the Xbox
     // button brought it back, or its keyboard is up for the app).
@@ -68,7 +72,7 @@ export function startLaunchCover() {
       e.type === 'app-running' ||
       e.type === 'keyboard-request'
     ) {
-      removeLaunchCover()
+      removeLaunchCover(true)
     }
   })
 }

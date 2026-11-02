@@ -104,6 +104,8 @@ export async function activate(tile: TileModel) {
   try {
     await tv.launch(tile.launch, tile.title)
     markAppOpened()
+    // A web service opens inside the launcher's own window, in front of the cover.
+    if (tile.launch.kind === 'web') removeLaunchCover(true)
   } catch (e) {
     removeLaunchCover()
     notify(`Couldn't open ${tile.title}: ${String(e)}`)
