@@ -1,4 +1,5 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
+import { deleteRom, favoriteRom, useLibrary } from '../lib/library'
 import { forgetRecent, usePrefs } from '../lib/prefs'
 import { closeTileMenu, setTileOptions, titleShown, useTileMenu, useTileOptions } from '../lib/tileMenu'
 import { Dialog, type DialogOption } from './Dialog'
@@ -9,7 +10,31 @@ export function TileOptionsDialog() {
   const menu = useTileMenu()
   const options = useTileOptions(menu?.key ?? '')
   const recent = usePrefs((p) => p.recent)
+  const lib = useLibrary()
+  // The tile whose "Delete game" was picked, waiting for a yes
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; title: string; file: string } | null>(null)
   const close = useCallback(() => closeTileMenu(), [])
+  const closeConfirm = useCallback(() => setConfirmDelete(null), [])
+  if (confirmDelete) {
+    return (
+      <Dialog
+        title={`Delete ${confirmDelete.title}?`}
+        message={`This deletes ${confirmDelete.file} from the TV for good. Your saved game stays, and the copy on your desktop isn't touched.`}
+        onClose={closeConfirm}
+        options={[
+          { label: 'Keep it', onSelect: closeConfirm },
+          {
+            label: 'Delete',
+            onSelect: () => {
+              const { id, title } = confirmDelete
+              setConfirmDelete(null)
+              void deleteRom(id, title)
+            },
+          },
+        ]}
+      />
+    )
+  }
   if (!menu) return null
   const shown = titleShown(options, menu.hasLogo)
   const items: DialogOption[] = []
@@ -21,6 +46,25 @@ export function TileOptionsDialog() {
         openGameInfo(menu.key.slice(4))
       },
     })
+    const id = menu.key.slice(4)
+    const game = lib.roms.games.find((g) => g.id === id)
+    const fav = (lib.roms.favorites ?? []).includes(id)
+    items.push({
+      label: fav ? 'Remove from Favorites' : 'Add to Favorites',
+      onSelect: () => {
+        close()
+        void favoriteRom(id, !fav, menu.title)
+      },
+    })
+    if (game) {
+      items.push({
+        label: 'Delete game…',
+        onSelect: () => {
+          close()
+          setConfirmDelete({ id, title: menu.title, file: game.file })
+        },
+      })
+    }
   }
   items.push(
     {

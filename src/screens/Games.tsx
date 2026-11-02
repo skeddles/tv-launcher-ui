@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Header } from '../components/Header'
 import { Tile } from '../components/Tile'
-import { emulatorSettingsTile, recentlyPlayed, suggestedRows } from '../lib/games'
+import { emulatorSettingsTile, favoriteGames, recentlyPlayed, suggestedRows } from '../lib/games'
 import { gameTiles, refreshRoms, romTiles, useLibrary } from '../lib/library'
 import { goTo } from '../lib/place'
 import { TileRow } from './shared'
@@ -17,6 +17,14 @@ export function ContinueRow({ first }: { first?: boolean }) {
   if (recent.length === 0) return null
   const tiles = romTiles(lib, recent)
   return <TileRow first={first} carousel title="Continue playing" tiles={tiles} />
+}
+
+/** Games you marked as favorites (tile options → Add to Favorites). */
+export function FavoritesRow({ first }: { first?: boolean }) {
+  const lib = useLibrary()
+  const favs = favoriteGames(lib.roms)
+  if (favs.length === 0) return null
+  return <TileRow first={first} carousel title="Favorite games" tiles={romTiles(lib, favs)} />
 }
 
 const newSeed = () => Math.floor(Math.random() * 2147483646) + 1
@@ -39,10 +47,11 @@ export function Games() {
     <>
       <Header title="Games" />
       <ContinueRow first />
+      <FavoritesRow first={!hasRecent} />
       {rows.slice(0, 1).map((r) => (
         <TileRow
           key={r.key}
-          first={!hasRecent}
+          first={!hasRecent && favoriteGames(lib.roms).length === 0}
           carousel
           title={r.title}
           tiles={romTiles(lib, r.games)}

@@ -14,6 +14,7 @@ export interface RomGame {
   plays: number
   resumable: boolean
   genre: string | null // row title such as "Platformers"; null when unknown (yet)
+  favorite: boolean
 }
 
 export interface RomSystem {
@@ -24,6 +25,7 @@ export interface RomSystem {
 export interface RomLibrary {
   systems: RomSystem[]
   games: RomGame[]
+  favorites?: string[] // game ids, newest first
 }
 
 export const RETROARCH = 'org.libretro.RetroArch'
@@ -32,6 +34,23 @@ export async function fetchRoms(): Promise<RomLibrary> {
   const res = await fetch('/games-api/list')
   if (!res.ok) throw new Error(`games ${res.status}`)
   return (await res.json()) as RomLibrary
+}
+
+export async function setFavorite(id: string, on: boolean): Promise<boolean> {
+  const res = await fetch(`/games-api/favorite/${id}?on=${on ? 1 : 0}`, { method: 'POST' }).catch(() => null)
+  return Boolean(res?.ok)
+}
+
+/** Delete a game's files from the TV for good (saves are kept). */
+export async function deleteRomFiles(id: string): Promise<boolean> {
+  const res = await fetch(`/games-api/delete/${id}`, { method: 'POST' }).catch(() => null)
+  return Boolean(res?.ok)
+}
+
+/** Favorite games, newest favorite first. */
+export function favoriteGames(lib: RomLibrary): RomGame[] {
+  const byId = new Map(lib.games.map((g) => [g.id, g]))
+  return (lib.favorites ?? []).map((id) => byId.get(id)).filter((g): g is RomGame => Boolean(g))
 }
 
 /** Tell the library a game was started (for Continue playing and Recently Opened). */

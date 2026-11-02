@@ -10,7 +10,7 @@
 // settings menu for every system, started straight into the game.
 
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, extname, join, relative } from 'node:path'
 import type { Plugin } from 'vite'
@@ -29,6 +29,9 @@ const RA_CONFIG = join(HOME, '.var/app/org.libretro.RetroArch/config/retroarch')
 const CORES = join(RA_CONFIG, 'cores')
 const HISTORY = join(HOME, '.local/share/tvlauncher/games-played.json')
 const ART_CACHE = join(HOME, '.cache/tvlauncher/game-art')
+const FAVORITES = join(HOME, '.local/share/tvlauncher/games-favorites.json')
+// Games deleted from the launcher, so a later copy from the desktop skips them
+const DELETED = join(GAMES, '.deleted.txt')
 const ART_HOST = 'https://thumbnails.libretro.com'
 
 export interface Game {
@@ -42,6 +45,7 @@ export interface Game {
   plays: number
   resumable: boolean // RetroArch has an automatic save state to continue from
   genre: string | null // row title, e.g. "Platformers" (genres.ts); null while unknown
+  favorite: boolean
 }
 
 interface Found {
@@ -212,6 +216,71 @@ function info(g: Found) {
   }
 }
 
+// ---------- favorites and deleting ----------
+
+function readFavorites(): string[] {
+  try {
+    return JSON.parse(readFileSync(FAVORITES, 'utf8')) as string[]
+  } catch {
+    return []
+  }
+}
+
+function setFavorite(id: string, on: boolean) {
+  const favs = readFavorites().filter((f) => f !== id)
+  if (on) favs.unshift(id) // newest first
+  mkdirSync(dirname(FAVORITES), { recursive: true })
+  writeFileSync(FAVORITES, JSON.stringify(favs))
+}
+
+/**
+ * Delete a game's files for good: the ROM, and for a disc game the track files
+ * its cue sheet or playlist names (only files inside ~/Games/ROMs or ROMs Extra).
+ * Saves and save states are kept.
+ */
+function deleteGame(g: Found): string[] {
+  const files = [g.path, ...referenced(g.path)]
+  // A disc's other files with the same name (Breath.Of.Fire.4.ccd/.sub next to its .cue)
+  const stem = basename(g.path, extname(g.path))
+  try {
+    for (const n of readdirSync(dirname(g.path))) {
+      if (basename(n, extname(n)) === stem && ['.ccd', '.sub', '.img', '.bin', '.cue', '.mds', '.mdf'].includes(extname(n).toLowerCase()))
+        files.push(join(dirname(g.path), n))
+    }
+  } catch {
+    /* folder gone */
+  }
+  const deleted: string[] = []
+  for (const f of new Set(files)) {
+    const rel = relative(GAMES, f)
+    if (!(rel.startsWith('ROMs/') || rel.startsWith('ROMs Extra/')) || rel.includes('..')) continue
+    try {
+      unlinkSync(f)
+      deleted.push(rel)
+    } catch {
+      /* already gone */
+    }
+  }
+  // A game in its own folder (Sonic ZTreme/): remove the folder once it's empty
+  const dir = dirname(g.path)
+  if (!SYSTEMS.some((sys) => FOLDERS.some((fo) => join(fo.dir, sys.id) === dir))) {
+    try {
+      rmdirSync(dir)
+    } catch {
+      /* not empty */
+    }
+  }
+  try {
+    appendFileSync(DELETED, deleted.map((d) => `${d}\n`).join(''))
+    unlinkSync(join(ART_CACHE, g.sys.id, `${g.id}.png`))
+  } catch {
+    /* no art cached */
+  }
+  setFavorite(g.id, false)
+  scanCache = null
+  return deleted
+}
+
 type History = Record<string, { at: number; plays: number }>
 
 function readHistory(): History {
@@ -231,6 +300,7 @@ function markPlayed(id: string) {
 
 function list() {
   const history = readHistory()
+  const favorites = new Set(readFavorites())
   const found = scan()
   const genreOf = genres(found.map((g) => ({ id: g.id, systemId: g.sys.id, artSystems: g.sys.art, path: g.path, file: basename(g.path), extra: g.extra })))
   const coreCache = new Map<string, string | null>()
@@ -249,10 +319,12 @@ function list() {
       plays: h?.plays ?? 0,
       resumable: h ? hasAutoState(g) : false,
       genre: genreOf[g.id] ?? null,
+      favorite: favorites.has(g.id),
     }
   })
   const systems = SYSTEMS.filter((s) => games.some((g) => g.system === s.id)).map((s) => ({ id: s.id, name: s.name }))
-  return { systems, games }
+  // Favorites in the order they were added (newest first)
+  return { systems, games, favorites: readFavorites().filter((id) => games.some((g) => g.id === id)) }
 }
 
 // ---------- box art ----------
@@ -429,6 +501,15 @@ async function handle(req: Req, res: Res, next: () => void) {
       if (!game) return json(res, 404, { error: 'no such game' })
       markPlayed(game.id)
       return json(res, 200, { ok: true, args: launchArgs(game) })
+    }
+    if (what === 'favorite' && req.method === 'POST') {
+      if (!game) return json(res, 404, { error: 'no such game' })
+      setFavorite(game.id, !url.includes('on=0'))
+      return json(res, 200, { ok: true })
+    }
+    if (what === 'delete' && req.method === 'POST') {
+      if (!game) return json(res, 404, { error: 'no such game' })
+      return json(res, 200, { ok: true, deleted: deleteGame(game) })
     }
     if (what === 'info') {
       if (!game) return json(res, 404, { error: 'no such game' })

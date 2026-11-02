@@ -8,9 +8,9 @@ import { removeLaunchCover, showLaunchCover } from './launchCover'
 import { useSyncExternalStore } from 'react'
 import { tv, type InstalledFlatpak, type LaunchTarget, type PlexHome, type PlexItem, type SteamGame } from './bridge'
 import { colorFor, hiddenApps, steamBigPicture, streaming, type Tag } from '../data/catalog'
-import { markRecent } from './prefs'
 import { romShortTags } from './romTags'
-import { fetchRoms, markPlayed, romTile, type RomGame, type RomLibrary } from './games'
+import { deleteRomFiles, fetchRoms, markPlayed, romTile, setFavorite, type RomGame, type RomLibrary } from './games'
+import { forgetRecent, markRecent } from './prefs'
 
 export interface TileModel {
   id: string
@@ -70,6 +70,25 @@ export async function refreshLibrary() {
 export async function refreshRoms() {
   const roms = await fetchRoms().catch(() => null)
   if (roms) set({ roms })
+}
+
+export async function favoriteRom(id: string, on: boolean, title: string) {
+  // Show it straight away; the TV keeps the list
+  const favorites = (state.roms.favorites ?? []).filter((f) => f !== id)
+  set({ roms: { ...state.roms, favorites: on ? [id, ...favorites] : favorites } })
+  const ok = await setFavorite(id, on)
+  notify(ok ? (on ? `${title} added to Favorites` : `${title} removed from Favorites`) : `Couldn't change Favorites`)
+  await refreshRoms()
+}
+
+export async function deleteRom(id: string, title: string) {
+  const ok = await deleteRomFiles(id)
+  if (ok) {
+    set({ roms: { ...state.roms, games: state.roms.games.filter((g) => g.id !== id) } })
+    forgetRecent(`rom:${id}`)
+  }
+  notify(ok ? `${title} was deleted` : `Couldn't delete ${title}`)
+  await refreshRoms()
 }
 
 /** Plex rows on Home: on start, every 5 minutes, and after an app closes (you may have watched something). */
