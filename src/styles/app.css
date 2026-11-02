@@ -734,3 +734,10 @@ html:not(.pointer-active) * {
   margin: 8px 0 24px;
   font-size: 19px;
 }
+
+.setting-tile__icon {
+  position: relative;
+  color: var(--text);
+  opacity: 0.9;
+  line-height: 0;
+}

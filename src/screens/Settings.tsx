@@ -191,23 +191,24 @@ export function Settings() {
         <SettingTile id="settings:pointer-size" label="Pointer size" value={sizeName} onSelect={() => adjust('pointerSize')} />
         <SettingTile
           id="settings:mouse-reset"
+          icon="undo"
           label="Forget mouse mode choices"
           onSelect={() => {
             void tv.resetInputPrefs()
             notify('Mouse mode will decide automatically again for every app')
           }}
         />
-        <SettingTile id="settings:guide" label="Controller guide" onSelect={() => setShowInfo('guide')} />
+        <SettingTile id="settings:guide" icon="gamepad" label="Controller guide" onSelect={() => setShowInfo('guide')} />
       </Row>
 
       <Row title="System" count={7}>
         <SettingTile id="settings:update" label="System update" value={osUpdateValue(osUpdate)} onSelect={updateAction} />
-        <SettingTile id="settings:claude" label="Connect Claude" onSelect={connectClaude} />
-        <SettingTile id="settings:about" label="About" onSelect={() => setShowInfo('about')} />
-        <SettingTile id="settings:reload" label="Reload launcher screen" onSelect={() => void tv.power('reload-ui')} />
-        <SettingTile id="settings:restart" label="Restart launcher" onSelect={() => void tv.power('restart-shell')} />
-        <SettingTile id="settings:reboot" label="Restart TV PC" onSelect={() => setConfirm('reboot')} />
-        <SettingTile id="settings:poweroff" label="Shut down" onSelect={() => setConfirm('poweroff')} />
+        <SettingTile id="settings:claude" icon="link" label="Connect Claude" onSelect={connectClaude} />
+        <SettingTile id="settings:about" icon="info" label="About" onSelect={() => setShowInfo('about')} />
+        <SettingTile id="settings:reload" icon="reload" label="Reload launcher screen" onSelect={() => void tv.power('reload-ui')} />
+        <SettingTile id="settings:restart" icon="relaunch" label="Restart launcher" onSelect={() => void tv.power('restart-shell')} />
+        <SettingTile id="settings:reboot" icon="restart" label="Restart TV PC" onSelect={() => setConfirm('reboot')} />
+        <SettingTile id="settings:poweroff" icon="power" label="Shut down" onSelect={() => setConfirm('poweroff')} />
       </Row>
 
       {adjusting === 'volume' && (
