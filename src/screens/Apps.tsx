@@ -1,5 +1,5 @@
 import { Header } from '../components/Header'
-import { appTiles, useLibrary } from '../lib/library'
+import { appTiles, localTiles, useLibrary } from '../lib/library'
 import { StoreTile } from './Home'
 import { TileRow } from './shared'
 
@@ -9,6 +9,7 @@ export function Apps() {
     <>
       <Header title="Apps" />
       <TileRow first title="Installed" tiles={appTiles(lib.flatpaks)} extra={<StoreTile row="Installed" />} />
+      {localTiles(lib.local, 'app').length > 0 && <TileRow title="Your apps" tiles={localTiles(lib.local, 'app')} />}
     </>
   )
 }

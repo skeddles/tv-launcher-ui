@@ -1042,3 +1042,39 @@ html:not(.pointer-active) * {
   font-size: 15px;
   margin: 8px 0 24px;
 }
+
+/* One of your own apps, full screen over the launcher (localApps.ts) */
+.local-app {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #000;
+}
+.local-app__frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+}
+.local-app__hint {
+  position: fixed;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  padding: 14px 24px;
+  border-radius: 999px;
+  background: #000000c0;
+  color: #fff;
+  font-size: 20px;
+  pointer-events: none;
+  animation: local-app-hint 3.5s ease forwards;
+}
+@keyframes local-app-hint {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

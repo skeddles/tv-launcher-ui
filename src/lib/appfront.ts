@@ -5,13 +5,14 @@
 // while the launcher's keyboard is up for that app.
 
 import { tv } from './bridge'
+import { localAppOpen } from './localApps'
 
 let appOpen = false
 let typing = false
 
 /** True when the launcher should ignore the controller. */
 export function controllerPaused(): boolean {
-  return appOpen && !typing
+  return (appOpen && !typing) || localAppOpen()
 }
 
 /** Something was opened from the launcher (an app, a game or a web layer). */

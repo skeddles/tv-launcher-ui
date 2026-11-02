@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Header } from '../components/Header'
 import { Tile } from '../components/Tile'
 import { emulatorSettingsTile, favoriteGames, recentlyPlayed, suggestedRows } from '../lib/games'
-import { gameTiles, refreshRoms, romTiles, useLibrary } from '../lib/library'
+import { gameTiles, localTiles, refreshRoms, romTiles, useLibrary } from '../lib/library'
 import { goTo } from '../lib/place'
 import { ItchInstalledRow } from './Itch'
 import { TileRow } from './shared'
@@ -67,6 +67,7 @@ export function Games() {
       ))}
       <TileRow first={!hasRecent && !romsLoaded} title="Steam" tiles={gameTiles(lib.games)} />
       <ItchInstalledRow />
+      {localTiles(lib.local, 'game').length > 0 && <TileRow title="Your games" tiles={localTiles(lib.local, 'game')} />}
       {rows.slice(1).map((r) => (
         <TileRow
           key={r.key}

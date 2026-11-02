@@ -9,6 +9,7 @@ export type LaunchTarget =
   | { kind: 'steam'; appId: string }
   | { kind: 'steam-bigpicture' }
   | { kind: 'plex'; ratingKey: string } // a show or movie, started in Plex
+  | { kind: 'local'; id: string } // one of your own apps (opened by the launcher itself, see localApps.ts)
 
 export interface PlexItem {
   ratingKey: string
@@ -69,6 +70,8 @@ export type ShellEvent =
   | { type: 'app-running'; label: string; quitLabel: string }
   | { type: 'steam-closed'; label: string }
   | { type: 'os-update'; state: OsUpdateState }
+  // The Xbox button while the launcher is in front (closes one of your own apps)
+  | { type: 'home' }
 
 export interface OsUpdateState {
   // unknown: not checked yet · busy: an update started elsewhere (e.g. Bazzite's daily one) is running

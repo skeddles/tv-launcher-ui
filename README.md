@@ -72,6 +72,27 @@ The dev server reads the folders (`/games-api/list`), records what was played
 libretro-thumbnails project), cached in `~/.cache/tvlauncher/game-art/`. Art is
 matched best when ROMs use No-Intro names, e.g. `Super Mario World (USA).sfc`.
 
+## Your own apps and games
+
+Small games and apps you make yourself, kept outside the launcher and the
+system image: each is a folder of web files (HTML, JavaScript, images) on the TV.
+
+    ~/.local/share/tvlauncher/apps/<name>/index.html     required
+    ~/.local/share/tvlauncher/apps/<name>/manifest.json  optional:
+      { "name": "Pong", "type": "game", "icon": "icon.svg", "color": "#1b2a3a" }
+
+`type` is `game` (shown under Games > Your games, the default) or `app`
+(Apps > Your apps). The launcher opens one full screen almost instantly,
+because its browser engine is already running. Read the controller with the
+browser's Gamepad API (`navigator.getGamepads()`); keyboard events work too.
+The Xbox button (or holding View + Menu) goes back to the launcher.
+
+Each page runs as its own site (`http://127.0.0.1:5174/<name>/`, local to the
+TV only): it can save with `localStorage` but can't reach the launcher. Files
+aren't cached, so an edit shows the next time you open it; a new folder shows
+after the launcher reloads its list (when an app closes, or Settings > Reload).
+See `examples/local-apps/pong/` (about 4 KB). Served by `server/localApps.ts`.
+
 ## Developing on another computer
 
 ```sh

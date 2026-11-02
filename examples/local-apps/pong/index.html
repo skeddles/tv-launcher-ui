@@ -1,0 +1,102 @@
+<!doctype html>
+<!-- A tiny example game for the TV launcher: one file, controller or keyboard.
+     Copy this folder to ~/.local/share/tvlauncher/apps/ to see it under Games. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Pong</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0b1118; overflow: hidden; }
+  canvas { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const c = document.getElementById('c'), g = c.getContext('2d')
+const W = 1600, H = 900, PAD_H = 140, PAD_W = 18, BALL = 18, WIN = 7
+c.width = W; c.height = H
+let best = 0
+try { best = Number(localStorage.getItem('best') || 0) } catch {}
+let me, cpu, ball, score, state = 'title', last = performance.now(), aWas = false
+
+function reset() { me = H / 2; cpu = H / 2; score = [0, 0]; serve(1) }
+function serve(dir) {
+  const a = (Math.random() - 0.5) * 0.8
+  ball = { x: W / 2, y: H / 2, vx: Math.cos(a) * 620 * dir, vy: Math.sin(a) * 620 }
+}
+
+// Controller (left stick or D-pad) or keyboard (arrow keys, Enter / Space).
+const keys = new Set()
+addEventListener('keydown', (e) => keys.add(e.key))
+addEventListener('keyup', (e) => keys.delete(e.key))
+function input() {
+  let y = 0, a = keys.has('Enter') || keys.has(' ')
+  if (keys.has('ArrowUp')) y = -1
+  if (keys.has('ArrowDown')) y = 1
+  for (const p of navigator.getGamepads()) {
+    if (!p) continue
+    if (Math.abs(p.axes[1]) > 0.2) y = p.axes[1]
+    if (p.buttons[12]?.pressed) y = -1
+    if (p.buttons[13]?.pressed) y = 1
+    if (p.buttons[0]?.pressed) a = true
+  }
+  return { y, a }
+}
+
+function step(dt) {
+  const { y, a } = input()
+  const pressA = a && !aWas
+  aWas = a
+  if (state !== 'play') { if (pressA) { reset(); state = 'play' } return }
+  me = Math.max(PAD_H / 2, Math.min(H - PAD_H / 2, me + y * 900 * dt))
+  const lead = ball.vx > 0 ? ball.y : H / 2
+  cpu += Math.max(-520 * dt, Math.min(520 * dt, lead - cpu))
+  ball.x += ball.vx * dt; ball.y += ball.vy * dt
+  if (ball.y < BALL / 2 || ball.y > H - BALL / 2) { ball.vy *= -1; ball.y = Math.max(BALL / 2, Math.min(H - BALL / 2, ball.y)) }
+  const hit = (px, py) => Math.abs(ball.x - px) < (PAD_W + BALL) / 2 && Math.abs(ball.y - py) < (PAD_H + BALL) / 2
+  if (ball.vx < 0 && hit(60, me)) bounce(me, 1)
+  if (ball.vx > 0 && hit(W - 60, cpu)) bounce(cpu, -1)
+  if (ball.x < -BALL) point(1)
+  if (ball.x > W + BALL) point(0)
+}
+function bounce(py, dir) {
+  const speed = Math.min(1500, Math.hypot(ball.vx, ball.vy) * 1.06)
+  const a = ((ball.y - py) / (PAD_H / 2)) * 0.9
+  ball.vx = Math.cos(a) * speed * dir; ball.vy = Math.sin(a) * speed
+}
+function point(who) {
+  score[who]++
+  if (score[0] > best) { best = score[0]; try { localStorage.setItem('best', best) } catch {} }
+  if (score[who] >= WIN) state = who === 0 ? 'won' : 'lost'
+  else serve(who === 0 ? -1 : 1)
+}
+
+function draw() {
+  g.fillStyle = '#0b1118'; g.fillRect(0, 0, W, H)
+  g.fillStyle = '#ffffff30'
+  for (let y = 10; y < H; y += 40) g.fillRect(W / 2 - 3, y, 6, 20)
+  g.fillStyle = '#fff'; g.textAlign = 'center'
+  g.font = 'bold 96px system-ui, sans-serif'
+  if (score) { g.fillText(score[0], W / 2 - 140, 120); g.fillText(score[1], W / 2 + 140, 120) }
+  if (state === 'play') {
+    g.fillRect(60 - PAD_W / 2, me - PAD_H / 2, PAD_W, PAD_H)
+    g.fillRect(W - 60 - PAD_W / 2, cpu - PAD_H / 2, PAD_W, PAD_H)
+    g.fillStyle = '#ffd166'; g.beginPath(); g.arc(ball.x, ball.y, BALL / 2, 0, 7); g.fill()
+  } else {
+    const title = { title: 'PONG', won: 'You win!', lost: 'Computer wins' }[state]
+    g.font = 'bold 120px system-ui, sans-serif'; g.fillText(title, W / 2, H / 2 - 20)
+    g.font = '40px system-ui, sans-serif'; g.fillStyle = '#ffffffb0'
+    g.fillText('Press A to play  ·  stick or D-pad to move', W / 2, H / 2 + 60)
+    g.fillText(`First to ${WIN}  ·  your best: ${best}`, W / 2, H / 2 + 120)
+  }
+}
+
+function frame(now) {
+  step(Math.min(0.05, (now - last) / 1000)); last = now
+  draw(); requestAnimationFrame(frame)
+}
+requestAnimationFrame(frame)
+</script>
+</body>
+</html>

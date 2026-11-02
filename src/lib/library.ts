@@ -11,6 +11,7 @@ import { colorFor, hiddenApps, steamBigPicture, streaming, type Tag } from '../d
 import { romShortTags } from './romTags'
 import { deleteRomFiles, fetchRoms, markPlayed, romTile, setFavorite, type RomGame, type RomLibrary } from './games'
 import { forgetRecent, markRecent } from './prefs'
+import { fetchLocalApps, openLocalApp, type LocalApp } from './localApps'
 
 export interface TileModel {
   id: string
@@ -42,9 +43,10 @@ interface LibraryState {
   notice: string | null
   plex: PlexHome | null // null: not signed in to Plex, or not loaded yet
   roms: RomLibrary // emulated games on this TV
+  local: LocalApp[] // your own apps and games (folders on the TV)
 }
 
-let state: LibraryState = { loaded: false, flatpaks: [], games: [], installing: {}, notice: null, plex: null, roms: { systems: [], games: [] } }
+let state: LibraryState = { loaded: false, flatpaks: [], games: [], installing: {}, notice: null, plex: null, roms: { systems: [], games: [] }, local: [] }
 const listeners = new Set<() => void>()
 let noticeTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -60,11 +62,12 @@ export function notify(message: string) {
 }
 
 export async function refreshLibrary() {
-  const [flatpaks, games] = await Promise.all([
+  const [flatpaks, games, local] = await Promise.all([
     tv.listFlatpaks().catch(() => [] as InstalledFlatpak[]),
     tv.listSteamGames().catch(() => [] as SteamGame[]),
+    fetchLocalApps(),
   ])
-  set({ loaded: true, flatpaks, games })
+  set({ loaded: true, flatpaks, games, local })
 }
 
 /** Emulated games: on start and after an app closes (Continue playing changes). */
@@ -176,6 +179,15 @@ export async function activate(tile: TileModel) {
   if (tile.kind !== 'media') markRecent(tile.id) // Recently Opened is for apps
   if (tile.rowKey) recordRowPick(tile.rowKey)
   if (tile.romId) markPlayed(tile.romId)
+  if (tile.launch.kind === 'local') {
+    const app = state.local.find((a) => a.id === (tile.launch as { id: string }).id)
+    if (app) openLocalApp(app)
+    else {
+      removeLaunchCover()
+      notify(`${tile.title} isn't on this TV any more`)
+    }
+    return
+  }
   try {
     await tv.launch(tile.launch, tile.title)
     markAppOpened()
@@ -223,6 +235,21 @@ export function gameTiles(games: SteamGame[]): TileModel[] {
   ]
 }
 
+/** Your own apps or games (folders in ~/.local/share/tvlauncher/apps). */
+export function localTiles(apps: LocalApp[], type?: 'game' | 'app'): TileModel[] {
+  return apps
+    .filter((a) => !type || a.type === type)
+    .map((a) => ({
+      id: `local:${a.id}`,
+      title: a.name,
+      color: a.color ?? colorFor(a.id),
+      tags: a.type === 'game' ? ['games' as const] : [],
+      icon: a.icon ?? undefined,
+      launch: { kind: 'local' as const, id: a.id },
+      kind: a.type,
+    }))
+}
+
 export function romTiles(s: LibraryState = state, games: RomGame[] = s.roms.games): TileModel[] {
   const dups = duplicateTitles(s.roms.games)
   return games.map((g) => {
@@ -251,7 +278,7 @@ function duplicateTitles(games: RomGame[]): Set<string> {
 }
 
 export function allTiles(s: LibraryState = state): TileModel[] {
-  return [...serviceTiles(), ...gameTiles(s.games), ...appTiles(s.flatpaks), ...romTiles(s)]
+  return [...serviceTiles(), ...gameTiles(s.games), ...localTiles(s.local), ...appTiles(s.flatpaks), ...romTiles(s)]
 }
 
 export function useLibrary(): LibraryState {

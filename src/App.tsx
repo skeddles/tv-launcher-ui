@@ -5,6 +5,8 @@ import { FocusRing } from './components/FocusRing'
 import { TileOptionsDialog } from './components/TileOptions'
 import { GameInfoDialog } from './components/GameInfo'
 import { TypingScreen } from './components/TypingScreen'
+import { LocalAppFrame } from './components/LocalAppFrame'
+import { startLocalApps } from './lib/localApps'
 import { tv } from './lib/bridge'
 import { currentElement, focus, pushBack, startFocusWatcher } from './lib/focus'
 import { startInput } from './lib/input'
@@ -90,6 +92,7 @@ export default function App() {
   useEffect(() => {
     startAppFront()
     startLaunchCover()
+    startLocalApps()
     startLibrary()
     const stopInput = startInput()
     const stopWatch = startFocusWatcher()
@@ -133,6 +136,7 @@ export default function App() {
           onClose={() => setRunning(null)}
         />
       )}
+      <LocalAppFrame />
       <TileOptionsDialog />
       <GameInfoDialog />
       <FocusRing />
