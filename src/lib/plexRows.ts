@@ -4,6 +4,7 @@
 // Lists are kept for 30 minutes so going back to a page is instant.
 
 import { tv, type PlexItem } from './bridge'
+import type { TileModel } from './library'
 import { getPrefs, setPrefs } from './prefs'
 
 export type PlexKind = 'movie' | 'show'
@@ -14,6 +15,7 @@ export interface RowDef {
   path: string // a Plex list path (without paging)
   shuffle: boolean // show the items in a fresh random order each visit
   baseWeight: number // how often it comes up near the top before you've picked anything
+  load?: () => Promise<TileModel[]> // rows from elsewhere (Netflix) bring their own loader
 }
 
 const TTL = 30 * 60_000

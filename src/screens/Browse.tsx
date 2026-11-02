@@ -5,7 +5,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Header } from '../components/Header'
 import type { Tag } from '../data/catalog'
-import { appTiles, plexTiles, serviceTiles, useLibrary } from '../lib/library'
+import { appTiles, plexTiles, serviceTiles, useLibrary, type TileModel } from '../lib/library'
+import { netflixCatalog } from '../lib/netflixRows'
 import { catalog, orderRows, rowItems, type PlexKind, type RowDef } from '../lib/plexRows'
 import type { PlexItem } from '../lib/bridge'
 import { TileRow } from './shared'
@@ -14,19 +15,19 @@ const mediaApps = new Set(['tv.kodi.Kodi', 'org.jellyfin.JellyfinDesktop'])
 const FIRST_ROWS = 5 // rows shown straight away
 const MORE_ROWS = 4 // added each time you scroll near the bottom
 
-function PlexRow({ row }: { row: RowDef }) {
-  const [items, setItems] = useState<PlexItem[] | null>(null)
+/** One row: Plex items, or tiles from the row's own loader (Netflix). */
+function MediaRow({ row }: { row: RowDef }) {
+  const [tiles, setTiles] = useState<TileModel[] | null>(null)
   useEffect(() => {
     let live = true
-    rowItems(row)
-      .then((i) => live && setItems(i))
-      .catch(() => live && setItems([]))
+    const load = row.load ? row.load() : rowItems(row).then((items: PlexItem[]) => plexTiles(items, row.key))
+    load.then((t) => live && setTiles(t)).catch(() => live && setTiles([]))
     return () => {
       live = false
     }
   }, [row])
-  if (!items || items.length === 0) return null
-  return <TileRow carousel title={row.title} tiles={plexTiles(items, row.key)} />
+  if (!tiles || tiles.length === 0) return null
+  return <TileRow carousel title={row.title} tiles={tiles} />
 }
 
 export function Browse({ title, tag }: { title: string; tag: Tag }) {
@@ -39,8 +40,9 @@ export function Browse({ title, tag }: { title: string; tag: Tag }) {
   // A new random order each time the page opens (catalog is cached, so this is quick).
   useEffect(() => {
     let live = true
-    catalog(kind)
-      .then((c) => live && setRows(orderRows(c)))
+    // Plex rows, plus Netflix rows when TMDB is set up on this TV
+    Promise.all([catalog(kind).catch(() => [] as RowDef[]), netflixCatalog(kind).catch(() => [] as RowDef[])])
+      .then(([plex, netflix]) => live && setRows(orderRows([...plex, ...netflix])))
       .catch(() => live && setRows([]))
     return () => {
       live = false
@@ -71,9 +73,15 @@ export function Browse({ title, tag }: { title: string; tag: Tag }) {
       {cw.length > 0 && <TileRow first carousel title="Continue watching" tiles={plexTiles(cw)} />}
       <TileRow first={cw.length === 0} title="Streaming Services" tiles={services} />
       {(rows ?? []).slice(0, shown).map((r) => (
-        <PlexRow key={r.key} row={r} />
+        <MediaRow key={r.key} row={r} />
       ))}
       {media.length > 0 && rows && shown >= rows.length && <TileRow title="Media Apps" tiles={media} />}
+      {rows?.some((r) => r.key.startsWith('netflix:')) && (
+        <p className="muted attribution">
+          Netflix titles: what's available from JustWatch, via TMDB. This product uses the TMDB API but is not endorsed or certified by
+          TMDB.
+        </p>
+      )}
       <div ref={sentinel} aria-hidden="true" style={{ height: 1 }} />
     </>
   )

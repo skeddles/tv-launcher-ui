@@ -995,3 +995,8 @@ html:not(.pointer-active) * {
 .app-details__description p {
   margin: 0 0 10px;
 }
+
+.attribution {
+  font-size: 15px;
+  margin: 8px 0 24px;
+}
