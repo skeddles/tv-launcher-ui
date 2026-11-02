@@ -208,10 +208,13 @@ export function romTiles(s: LibraryState = state, games: RomGame[] = s.roms.game
   return games.map((g) => {
     const t = romTile(g, s.roms.systems)
     // Several copies of one game: say which this is (region, version...) under its name
-    const tags = dups.has(`${g.system}:${g.title.toLowerCase()}`) ? romShortTags(g.file, g.system) : ''
+    const tags = dups.has(gameKey(g)) ? romShortTags(g.file, g.system) : ''
     return tags ? { ...t, subtitle: `${t.subtitle} · ${tags}`, tag: tags } : t
   })
 }
+
+/** Same system and same name, ignoring punctuation ("Mario Kart - Super Circuit" = "Mario Kart Super Circuit"). */
+const gameKey = (g: RomGame) => `${g.system}:${g.title.toLowerCase().replace(/[^a-z0-9]/g, '')}`
 
 let dupCache: { games: RomGame[]; dups: Set<string> } | null = null
 function duplicateTitles(games: RomGame[]): Set<string> {
@@ -219,7 +222,7 @@ function duplicateTitles(games: RomGame[]): Set<string> {
   const seen = new Set<string>()
   const dups = new Set<string>()
   for (const g of games) {
-    const k = `${g.system}:${g.title.toLowerCase()}`
+    const k = gameKey(g)
     if (seen.has(k)) dups.add(k)
     seen.add(k)
   }

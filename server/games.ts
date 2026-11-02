@@ -175,6 +175,9 @@ function hasAutoState(g: Found): boolean {
   return existsSync(join(STATES, basename(dirname(g.path)), name)) || existsSync(join(STATES, name))
 }
 
+/** "Mario Kart - Super Circuit" and "Mario Kart Super Circuit" are the same game. */
+const sameGame = (a: string, b: string) => a.toLowerCase().replace(/[^a-z0-9]/g, '') === b.toLowerCase().replace(/[^a-z0-9]/g, '')
+
 /** Facts about one game's files, for its info screen. */
 function info(g: Found) {
   const stem = basename(g.path, extname(g.path))
@@ -192,7 +195,7 @@ function info(g: Found) {
   for (const r of referenced(g.path)) size += fileInfo(r)?.size ?? 0
   const core = coreFor(g.sys)
   const others = scan()
-    .filter((o) => o.id !== g.id && o.sys.id === g.sys.id && cleanTitle(o.path).toLowerCase() === cleanTitle(g.path).toLowerCase())
+    .filter((o) => o.id !== g.id && o.sys.id === g.sys.id && sameGame(cleanTitle(o.path), cleanTitle(g.path)))
     .map((o) => ({ id: o.id, file: basename(o.path), extra: o.extra }))
   return {
     id: g.id,
