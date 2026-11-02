@@ -2,7 +2,7 @@
 // controller-friendly apps, then Flathub collections like Popular and Games).
 // Selecting an app opens its details page; installing starts from there.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppDetails } from '../components/AppDetails'
 import { Header } from '../components/Header'
 import { KeyboardOverlay } from '../components/Keyboard'
@@ -63,6 +63,25 @@ export function Store() {
       .catch(() => setError('Couldn’t reach Flathub. Check the internet connection.'))
   }, [])
 
+  // Next page of a suggestion row, when you scroll near its end
+  const pages = useRef<Record<string, { page: number; busy: boolean; done: boolean }>>({})
+  const loadMore = useCallback((title: string, path: string) => {
+    const p = (pages.current[title] ??= { page: 1, busy: false, done: false })
+    if (p.busy || p.done) return
+    p.busy = true
+    collection(path, p.page + 1)
+      .then((apps) => {
+        p.page += 1
+        if (apps.length === 0) p.done = true
+        setRows((cur) => {
+          const have = new Set((cur[title] ?? []).map((a) => a.appId))
+          return { ...cur, [title]: [...(cur[title] ?? []), ...apps.filter((a) => !have.has(a.appId))] }
+        })
+      })
+      .catch(() => (p.done = true))
+      .finally(() => (p.busy = false))
+  }, [])
+
   // Suggestion rows, straight from Flathub (each fills in when it arrives).
   useEffect(() => {
     let cancelled = false
@@ -119,7 +138,7 @@ export function Store() {
       </Row>
       {STORE_ROWS.map((r) =>
         rows[r.title]?.length ? (
-          <Row carousel key={r.title} title={r.title} count={rows[r.title].length}>
+          <Row carousel key={r.title} title={r.title} count={rows[r.title].length} onNearEnd={() => loadMore(r.title, r.path)}>
             <StoreTiles row={r.title} apps={rows[r.title]} onPick={onPick} />
           </Row>
         ) : null,

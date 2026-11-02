@@ -15,12 +15,11 @@ export interface RowDef {
   path: string // a Plex list path (without paging)
   shuffle: boolean // show the items in a fresh random order each visit
   baseWeight: number // how often it comes up near the top before you've picked anything
-  load?: () => Promise<TileModel[]> // rows from elsewhere (Netflix) bring their own loader
+  load?: (page: number) => Promise<TileModel[]> // rows from elsewhere (Netflix) bring their own loader; page 0, 1, 2... as you scroll right
 }
 
 const TTL = 30 * 60_000
-const POOL = 40 // items fetched per row
-const SHOWN = 20 // items shown per row
+const POOL = 500 // items fetched per row (the row draws them as you scroll right)
 const MIN_ITEMS = 4 // rows with fewer are skipped
 
 interface Dir {
@@ -114,7 +113,7 @@ export async function rowItems(row: RowDef): Promise<PlexItem[]> {
   }
   const items = await p.items
   if (items.length < MIN_ITEMS) return []
-  return (row.shuffle ? shuffled(items) : items).slice(0, SHOWN)
+  return row.shuffle ? shuffled(items) : items
 }
 
 /** Row order for one visit: random, weighted toward rows you pick from often. */

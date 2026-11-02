@@ -115,29 +115,21 @@ export interface GameRow {
  * (leaning toward systems you play), then a row per system and per genre in an
  * order that also favours what you play. Shuffled again each time the page opens (`seed`).
  */
-export function suggestedRows(lib: RomLibrary, seed: number, perRow = 18): GameRow[] {
+export function suggestedRows(lib: RomLibrary, seed: number): GameRow[] {
   const main = lib.games.filter((g) => !g.extra && g.args)
   if (main.length === 0) return []
   const playsBy = new Map<string, number>()
   for (const g of main) playsBy.set(g.system, (playsBy.get(g.system) ?? 0) + g.plays)
   const weight = (sys: string) => 1 + (playsBy.get(sys) ?? 0)
 
-  // Picked for you: weighted pick without replacement, unplayed games mixed in
-  const pool = shuffle(main, seed)
-  const picked: RomGame[] = []
-  const bag = pool.map((g) => ({ g, w: weight(g.system) * (g.plays ? 0.6 : 1) }))
-  let s = seed
-  while (picked.length < Math.min(perRow, main.length) && bag.length) {
-    const total = bag.reduce((t, x) => t + x.w, 0)
-    s = (s * 16807) % 2147483647
-    let r = (s / 2147483647) * total
-    const i = Math.max(
-      0,
-      bag.findIndex((x) => (r -= x.w) <= 0),
-    )
-    picked.push(bag[i].g)
-    bag.splice(i, 1)
-  }
+  // Picked for you: every game in a weighted random order (systems you play
+  // come up more; games you've played a little less, to mix in new ones)
+  let rs = seed
+  const rnd = () => (rs = (rs * 16807) % 2147483647) / 2147483647
+  const picked = shuffle(main, seed)
+    .map((g) => ({ g, k: Math.pow(rnd(), 1 / (weight(g.system) * (g.plays ? 0.6 : 1))) }))
+    .sort((x, y) => y.k - x.k)
+    .map((x) => x.g)
   const rows: GameRow[] = [{ key: 'picked', title: 'Picked for you', games: picked }]
 
   // Then rows by system and by genre, mixed: a fresh order each visit, with the
@@ -158,7 +150,7 @@ export function suggestedRows(lib: RomLibrary, seed: number, perRow = 18): GameR
   const rand = () => (r2 = (r2 * 16807) % 2147483647) / 2147483647
   const ordered = candidates.map((c) => ({ c, k: Math.pow(rand(), 1 / c.weight) })).sort((a, b) => b.k - a.k)
   for (const { c } of ordered) {
-    rows.push({ key: c.key, title: c.title, games: shuffle(c.games, seed + c.key.length * 31).slice(0, perRow) })
+    rows.push({ key: c.key, title: c.title, games: shuffle(c.games, seed + c.key.length * 31) })
   }
   return rows
 }

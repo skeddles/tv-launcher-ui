@@ -93,10 +93,13 @@ async function netflixIds(kind: 'movie' | 'tv', ids: number[]): Promise<Map<numb
 
 function rowLoader(kind: PlexKind, rowKey: string, query: string, pages: number) {
   const t = kind === 'movie' ? 'movie' : 'tv'
-  return async (): Promise<TileModel[]> => {
+  let start = 1
+  return async (n: number): Promise<TileModel[]> => {
     const reg = await region()
     if (!reg) return []
-    const page = 1 + Math.floor(Math.random() * pages)
+    // The first page is a random one of the first few; more follow it as you scroll right
+    if (n === 0) start = 1 + Math.floor(Math.random() * pages)
+    const page = start + n
     const data = await tmdb<{ results: TmdbTitle[] }>(
       `/discover/${t}?watch_region=${reg}&with_watch_providers=${NETFLIX}&sort_by=popularity.desc&page=${page}${query}`,
     )
@@ -118,7 +121,7 @@ function rowLoader(kind: PlexKind, rowKey: string, query: string, pages: number)
         kind: 'media',
         rowKey,
       }))
-    return tiles.length >= MIN_ITEMS ? tiles : []
+    return n > 0 || tiles.length >= MIN_ITEMS ? tiles : []
   }
 }
 

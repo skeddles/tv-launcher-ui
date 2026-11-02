@@ -13,7 +13,7 @@ import { TileRow } from './shared'
 /** Games started recently, the ones with a save state to resume first. */
 export function ContinueRow({ first }: { first?: boolean }) {
   const lib = useLibrary()
-  const recent = recentlyPlayed(lib.roms.games).slice(0, 12)
+  const recent = recentlyPlayed(lib.roms.games)
   if (recent.length === 0) return null
   const tiles = romTiles(lib, recent)
   return <TileRow first={first} carousel title="Continue playing" tiles={tiles} />

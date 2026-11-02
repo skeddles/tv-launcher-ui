@@ -2,7 +2,7 @@
 // each, then rows from the Plex library (genres, collections, decades...) in a
 // fresh order each visit, weighted toward rows you pick from. More rows load as
 // you scroll down.
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Header } from '../components/Header'
 import type { Tag } from '../data/catalog'
 import { appTiles, plexTiles, serviceTiles, useLibrary, type TileModel } from '../lib/library'
@@ -15,19 +15,41 @@ const mediaApps = new Set(['tv.kodi.Kodi', 'org.jellyfin.JellyfinDesktop'])
 const FIRST_ROWS = 5 // rows shown straight away
 const MORE_ROWS = 4 // added each time you scroll near the bottom
 
-/** One row: Plex items, or tiles from the row's own loader (Netflix). */
+/** One row: Plex items, or tiles from the row's own loader (Netflix), which
+ *  fetches another page each time you scroll near the end. */
 function MediaRow({ row }: { row: RowDef }) {
   const [tiles, setTiles] = useState<TileModel[] | null>(null)
+  const page = useRef(0)
+  const busy = useRef(false)
+  const done = useRef(false)
   useEffect(() => {
     let live = true
-    const load = row.load ? row.load() : rowItems(row).then((items: PlexItem[]) => plexTiles(items, row.key))
+    page.current = 0
+    done.current = !row.load
+    const load = row.load ? row.load(0) : rowItems(row).then((items: PlexItem[]) => plexTiles(items, row.key))
     load.then((t) => live && setTiles(t)).catch(() => live && setTiles([]))
     return () => {
       live = false
     }
   }, [row])
+  const more = useCallback(() => {
+    if (!row.load || busy.current || done.current) return
+    busy.current = true
+    page.current += 1
+    row
+      .load(page.current)
+      .then((next) => {
+        if (next.length === 0) done.current = true
+        setTiles((cur) => {
+          const have = new Set((cur ?? []).map((t) => t.id))
+          return [...(cur ?? []), ...next.filter((t) => !have.has(t.id))]
+        })
+      })
+      .catch(() => (done.current = true))
+      .finally(() => (busy.current = false))
+  }, [row])
   if (!tiles || tiles.length === 0) return null
-  return <TileRow carousel title={row.title} tiles={tiles} />
+  return <TileRow carousel title={row.title} tiles={tiles} onNearEnd={more} />
 }
 
 export function Browse({ title, tag }: { title: string; tag: Tag }) {

@@ -6,7 +6,7 @@
 //       so moving from the rail back into the tiles returns to where you were.
 //   data-focus-default                          first item to highlight on a screen.
 //   data-focus-scope (on a container)          traps navigation inside it (modals).
-//   data-carousel (on a row's container)        a single line that scrolls sideways.
+//   data-carousel (on a row's container)        a block of tiles that scrolls sideways.
 // Holding a direction never crosses between groups (rail <-> tiles): that takes
 // a fresh press, so a held D-pad stops at the edge.
 // The highlighted element gets the `is-focused` class via useFocused().
@@ -94,6 +94,25 @@ function scrollCarousel(el: HTMLElement) {
   target = Math.max(0, Math.min(target, row.scrollWidth - row.clientWidth))
   carouselTarget.set(row, target)
   row.scrollTo({ left: target, behavior: 'smooth' })
+  // A smooth scroll can be cut short (tiles added to the row mid-scroll): finish it
+  if (!watchedRows.has(row)) {
+    watchedRows.add(row)
+    row.addEventListener('scrollend', () => {
+      const t = carouselTarget.get(row)
+      if (t !== undefined && Math.abs(row.scrollLeft - t) > 1) row.scrollTo({ left: t })
+    })
+  }
+}
+const watchedRows = new WeakSet<HTMLElement>()
+
+/** After a row grew (more tiles drawn), scroll it again so the highlight is in view
+ *  (its earlier scroll was cut short at what was then the end). */
+export function revealFocusIn(container: HTMLElement) {
+  const el = currentElement()
+  if (!el || !container.contains(el)) return
+  const t = carouselTarget.get(container)
+  if (t !== undefined && Math.abs(container.scrollLeft - t) > 1) container.scrollTo({ left: t })
+  scrollCarousel(el)
 }
 
 function center(r: DOMRect) {

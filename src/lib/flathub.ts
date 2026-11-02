@@ -40,9 +40,10 @@ export const STORE_ROWS: Array<{ title: string; path: string }> = [
   { title: 'New on Flathub', path: '/collection/recently-added' },
 ]
 
-export async function collection(path: string, count = 20): Promise<StoreApp[]> {
+/** One page (1, 2, 3...) of a Flathub collection. */
+export async function collection(path: string, page = 1, count = 30): Promise<StoreApp[]> {
   const sep = path.includes('?') ? '&' : '?'
-  const data = await getJson<{ hits: Hit[] }>(`${path}${sep}page=1&per_page=${count}`)
+  const data = await getJson<{ hits: Hit[] }>(`${path}${sep}page=${page}&per_page=${count}`)
   return (data.hits || [])
     .filter((h) => !h.type || h.type === 'desktop-application')
     .map((h) => ({ appId: h.app_id, name: h.name, summary: h.summary ?? '', icon: h.icon, gamepad: false, installed: false }))

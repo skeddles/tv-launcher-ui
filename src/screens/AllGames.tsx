@@ -1,5 +1,5 @@
-// All games: every ROM on the TV, the extras too, one system after another in
-// A–Z rows. Rows are added as you scroll down (there can be thousands of games).
+// All games: every ROM on the TV, the extras too: one row per system, A–Z, that
+// scrolls sideways (a few lines tall when the system has many games).
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Header } from '../components/Header'
@@ -7,7 +7,6 @@ import { romTiles, useLibrary } from '../lib/library'
 import type { RomGame } from '../lib/games'
 import { TileRow } from './shared'
 
-const ROW_SIZE = 40 // games per row; bigger systems get several A–Z rows
 const FIRST_ROWS = 6
 const MORE_ROWS = 6
 
@@ -18,29 +17,11 @@ interface Section {
 }
 
 const sortKey = (g: RomGame) => g.title.toLowerCase().replace(/^the /, '')
-const letter = (g: RomGame) => {
-  const c = sortKey(g).charAt(0).toUpperCase()
-  return /[A-Z]/.test(c) ? c : '#'
-}
-
 function sections(games: RomGame[], systems: Array<{ id: string; name: string }>): Section[] {
   const out: Section[] = []
   for (const sys of systems) {
-    for (const extra of [false, true]) {
-      const list = games.filter((g) => g.system === sys.id && g.extra === extra).sort((a, b) => sortKey(a).localeCompare(sortKey(b)))
-      if (list.length === 0) continue
-      const name = extra ? `${sys.name} · more` : sys.name
-      if (list.length <= ROW_SIZE * 1.5) {
-        out.push({ key: `${sys.id}:${extra}`, title: name, games: list })
-        continue
-      }
-      for (let i = 0; i < list.length; i += ROW_SIZE) {
-        const part = list.slice(i, i + ROW_SIZE)
-        const a = letter(part[0])
-        const b = letter(part[part.length - 1])
-        out.push({ key: `${sys.id}:${extra}:${i}`, title: `${name}: ${a === b ? a : `${a}–${b}`}`, games: part })
-      }
-    }
+    const list = games.filter((g) => g.system === sys.id).sort((a, b) => sortKey(a).localeCompare(sortKey(b)))
+    if (list.length) out.push({ key: sys.id, title: `${sys.name} (${list.length.toLocaleString()})`, games: list })
   }
   return out
 }
@@ -73,7 +54,6 @@ export function AllGames() {
         <TileRow
           key={s.key}
           first={i === 0}
-          carousel
           title={s.title}
           tiles={romTiles(lib, s.games)}
         />
