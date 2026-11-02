@@ -6,10 +6,14 @@
 //     { "name": "Pong", "type": "game" | "app", "icon": "icon.png", "color": "#123456" }
 //
 // The launcher lists them from /local-apps.json and opens one full screen in a
-// frame. Their files are served from a second address (127.0.0.1:5174), so a
-// page is a separate site: it can't reach into the launcher, and it keeps its
-// own saved data (localStorage). Files are sent uncached, so an edit shows the
-// next time you open it.
+// frame. Each is served at the root of its own address, http://<name>.localhost:5174/
+// (only reachable on the TV), so:
+//   - it's its own site: it can't reach into the launcher or the other apps, and
+//     its saved data (localStorage, IndexedDB) is its own;
+//   - paths starting with "/" work, as on any web host;
+//   - any address without a file (an app's own routes, like /settings) gets its
+//     index.html, so single-page apps can use real paths.
+// Files are sent uncached, so an edit shows the next time you open it.
 
 import { createServer, type Server } from 'node:http'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
@@ -18,10 +22,20 @@ import { extname, join, resolve, sep } from 'node:path'
 import type { Plugin } from 'vite'
 
 export const APPS_DIR = process.env.TVLAUNCHER_APPS_DIR || join(homedir(), '.local/share/tvlauncher/apps')
-const HOST = '127.0.0.1' // never reachable from the network
+const HOSTS = ['127.0.0.1', '::1'] // never reachable from the network
 const PORT = 5174
-const ORIGIN = `http://${HOST}:${PORT}`
 const ID = /^[A-Za-z0-9][\w.-]*$/
+
+/** The address label for a folder: "My_Game.v2" -> "my-game-v2". */
+export function hostLabel(id: string): string {
+  return id
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 63)
+}
+
+const originFor = (label: string) => `http://${label}.localhost:${PORT}`
 
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -73,8 +87,12 @@ export function listLocalApps(dir = APPS_DIR): LocalApp[] {
     return [] // no folder yet
   }
   const apps: LocalApp[] = []
+  const labels = new Set<string>()
   for (const id of names.sort()) {
     if (!ID.test(id) || !existsSync(join(dir, id, 'index.html'))) continue
+    const label = hostLabel(id)
+    if (!label || labels.has(label)) continue // two folders that would share an address: the first wins
+    labels.add(label)
     let m: Manifest = {}
     try {
       m = JSON.parse(readFileSync(join(dir, id, 'manifest.json'), 'utf8')) as Manifest
@@ -86,8 +104,8 @@ export function listLocalApps(dir = APPS_DIR): LocalApp[] {
       id,
       name: typeof m.name === 'string' && m.name.trim() ? m.name.trim().slice(0, 60) : id,
       type: m.type === 'app' ? 'app' : 'game',
-      url: `${ORIGIN}/${encodeURIComponent(id)}/index.html`,
-      icon: icon ? `${ORIGIN}/${encodeURIComponent(id)}/${icon.split('/').map(encodeURIComponent).join('/')}` : null,
+      url: `${originFor(label)}/`,
+      icon: icon ? `${originFor(label)}/${icon.split('/').map(encodeURIComponent).join('/')}` : null,
       color: typeof m.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(m.color) ? m.color : null,
     })
   }
@@ -105,23 +123,36 @@ function safePath(root: string, rel: string): string | null {
   }
 }
 
-/** The file for a request path like /pong/index.html (or /pong/ -> index.html). */
-export function fileFor(urlPath: string, dir = APPS_DIR): string | null {
+/** The app folder a Host header points at ("pong.localhost:5174" -> "pong"). */
+export function folderFor(host: string | undefined, dir = APPS_DIR): string | null {
+  const m = /^([a-z0-9-]+)\.localhost(?::\d+)?$/i.exec(host || '')
+  if (!m) return null
+  const label = m[1].toLowerCase()
+  const app = listLocalApps(dir).find((a) => new URL(a.url).hostname === `${label}.localhost`)
+  return app ? resolve(dir, app.id) : null
+}
+
+/** The file for a path inside an app folder. Paths without a file get the
+ *  app's index.html (single-page apps' own routes); missing files with an
+ *  extension (like /missing.png) get null. */
+export function fileFor(root: string, urlPath: string): string | null {
   let p: string
   try {
-    p = decodeURIComponent(urlPath.split('?')[0])
+    p = decodeURIComponent(urlPath.split('?')[0].split('#')[0])
   } catch {
     return null
   }
-  const [, id, ...rest] = p.split('/')
-  if (!id || !ID.test(id)) return null
-  const rel = rest.join('/') || 'index.html'
-  return safePath(resolve(dir, id), rel.endsWith('/') ? `${rel}index.html` : rel)
+  const rel = p.replace(/^\/+/, '')
+  const file = safePath(root, rel.endsWith('/') || rel === '' ? `${rel}index.html` : rel)
+  if (file) return file
+  if (extname(rel)) return null
+  return safePath(root, 'index.html')
 }
 
-function startFileServer(): Server {
+function startFileServer(host: string): Server {
   const server = createServer((req, res) => {
-    const file = req.method === 'GET' || req.method === 'HEAD' ? fileFor(req.url || '/') : null
+    const root = req.method === 'GET' || req.method === 'HEAD' ? folderFor(req.headers.host) : null
+    const file = root ? fileFor(root, req.url || '/') : null
     if (!file) {
       res.writeHead(404, { 'content-type': 'text/plain' })
       res.end('not found')
@@ -134,14 +165,32 @@ function startFileServer(): Server {
     })
     res.end(req.method === 'HEAD' ? undefined : readFileSync(file))
   })
-  server.on('error', (e) => console.warn(`[local-apps] file server: ${e.message}`))
-  server.listen(PORT, HOST)
+  server.on('error', (e) => console.warn(`[local-apps] file server on ${host}: ${e.message}`))
+  server.listen(PORT, host)
   return server
 }
 
-// One file server for the life of the process (Vite restarts its own server
-// when this config changes, which would otherwise try to listen twice).
-const g = globalThis as { __tvLocalApps?: Server }
+// When this config changes Vite restarts in the same process: close the file
+// servers the previous config started (they hold the port), then start fresh
+// ones with the new code.
+const g = globalThis as { __tvLocalApps?: Server | Server[]; __tvLocalAppsStarting?: Promise<void> }
+
+function restartFileServers(): Promise<void> {
+  const old = g.__tvLocalApps
+  g.__tvLocalApps = undefined
+  const olds = old ? (Array.isArray(old) ? old : [old]) : []
+  return Promise.all(
+    olds.map(
+      (s) =>
+        new Promise<void>((done) => {
+          s.close(() => done())
+          s.closeAllConnections?.()
+        }),
+    ),
+  ).then(() => {
+    g.__tvLocalApps = HOSTS.map(startFileServer)
+  })
+}
 
 export function localApps(): Plugin {
   const list = (
@@ -155,8 +204,11 @@ export function localApps(): Plugin {
     res.setHeader('cache-control', 'no-store')
     res.end(JSON.stringify(listLocalApps()))
   }
+  let started = false
   const start = () => {
-    g.__tvLocalApps ??= startFileServer()
+    if (started) return // once per config load (dev and preview both call this)
+    started = true
+    g.__tvLocalAppsStarting = (g.__tvLocalAppsStarting ?? Promise.resolve()).then(restartFileServers)
   }
   return {
     name: 'local-apps',
