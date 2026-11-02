@@ -6,6 +6,9 @@
 //       so moving from the rail back into the tiles returns to where you were.
 //   data-focus-default                          first item to highlight on a screen.
 //   data-focus-scope (on a container)          traps navigation inside it (modals).
+//   data-carousel (on a row's container)        a single line that scrolls sideways.
+// Holding a direction never crosses between groups (rail <-> tiles): that takes
+// a fresh press, so a held D-pad stops at the edge.
 // The highlighted element gets the `is-focused` class via useFocused().
 
 import { useEffect, useSyncExternalStore } from 'react'
@@ -42,6 +45,7 @@ export function focus(id: string) {
   const group = el.dataset.focusGroup
   if (group) lastInGroup.set(group, id)
   if (getPlace().focusId !== id) setPlace({ focusId: id })
+  scrollCarousel(el)
   scrollIntoView(el)
 }
 
@@ -64,24 +68,53 @@ function scrollIntoView(el: HTMLElement) {
   }
 }
 
+// Where each carousel is scrolling to (its smooth scroll takes a moment).
+const carouselTarget = new WeakMap<HTMLElement, number>()
+
+/** An element's position once any carousel scroll in progress has finished, so
+ *  quick presses during the scroll go where the tiles are heading. */
+function rectOf(el: HTMLElement): DOMRect {
+  const r = el.getBoundingClientRect()
+  const row = el.closest<HTMLElement>('[data-carousel]')
+  const target = row ? carouselTarget.get(row) : undefined
+  if (!row || target === undefined) return r
+  return new DOMRect(r.left + (row.scrollLeft - target), r.top, r.width, r.height)
+}
+
+/** A carousel row scrolls sideways so the highlighted tile is fully in view. */
+function scrollCarousel(el: HTMLElement) {
+  const row = el.closest<HTMLElement>('[data-carousel]')
+  if (!row) return
+  const r = row.getBoundingClientRect()
+  const e = rectOf(el)
+  const current = carouselTarget.get(row) ?? row.scrollLeft
+  let target = current
+  if (e.left < r.left) target = current + (e.left - r.left)
+  else if (e.right > r.right) target = current + (e.right - r.right)
+  target = Math.max(0, Math.min(target, row.scrollWidth - row.clientWidth))
+  carouselTarget.set(row, target)
+  row.scrollTo({ left: target, behavior: 'smooth' })
+}
+
 function center(r: DOMRect) {
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
 }
 
-export function move(dir: Direction): boolean {
+/** Move the highlight. `repeat`: the press is an auto-repeat of a held direction. */
+export function move(dir: Direction, repeat = false): boolean {
   const cur = currentElement()
   if (!cur) {
     ensureFocus()
     return true
   }
-  const r = cur.getBoundingClientRect()
+  const r = rectOf(cur)
   const c = center(r)
   let best: HTMLElement | null = null
   let bestScore = Infinity
 
   for (const el of focusables()) {
     if (el === cur) continue
-    const er = el.getBoundingClientRect()
+    const er = rectOf(el)
     const ec = center(er)
     let primary: number
     let secondary: number
@@ -107,6 +140,12 @@ export function move(dir: Direction): boolean {
         secondary = Math.abs(ec.x - c.x)
         break
     }
+    // Left/right stay on the same line of tiles; only the rail (another group)
+    // may be reached from any height.
+    if ((dir === 'left' || dir === 'right') && el.dataset.focusGroup === cur.dataset.focusGroup) {
+      const overlap = Math.min(er.bottom, r.bottom) - Math.max(er.top, r.top)
+      if (overlap < Math.min(er.height, r.height) / 2) continue
+    }
     // Strongly prefer staying in the same line (row or column).
     const score = primary + secondary * 2.5
     if (score < bestScore) {
@@ -114,14 +153,28 @@ export function move(dir: Direction): boolean {
       best = el
     }
   }
+  // Right at the end of a line in a grid: carry on with the next line.
+  if (dir === 'right' && (!best || best.closest('.row__grid') !== cur.closest('.row__grid'))) {
+    const grid = cur.closest<HTMLElement>('.row__grid:not([data-carousel])')
+    if (grid) {
+      const items = focusables(grid)
+      const next = items[items.indexOf(cur) + 1]
+      if (next) best = next
+    }
+  }
   if (!best) return false
 
   // Entering a different group (e.g. rail -> tiles): restore the last item there.
   const fromGroup = cur.dataset.focusGroup
   const toGroup = best.dataset.focusGroup
+  if (toGroup !== fromGroup && repeat) return false // a held direction stops at the edge
   if (toGroup && toGroup !== fromGroup) {
-    const remembered = byId(lastInGroup.get(toGroup) ?? null)
-    if (remembered) best = remembered
+    // Into the rail: the current screen's button. Elsewhere: where you were.
+    const target =
+      toGroup === 'rail'
+        ? (document.querySelector<HTMLElement>('.rail__button--active') ?? byId(lastInGroup.get(toGroup) ?? null))
+        : byId(lastInGroup.get(toGroup) ?? null)
+    if (target) best = target
   }
   focus(best.dataset.focus!)
   return true

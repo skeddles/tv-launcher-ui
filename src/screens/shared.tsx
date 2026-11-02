@@ -9,18 +9,20 @@ export function TileRow({
   first,
   empty,
   extra,
+  carousel,
 }: {
   title: string
   tiles: TileModel[]
   first?: boolean
   empty?: string
   extra?: React.ReactNode
+  carousel?: boolean
 }) {
   const lib = useLibrary()
   const installed = new Set(lib.flatpaks.map((f) => f.appId))
   const count = tiles.length + (extra ? 1 : 0)
   return (
-    <Row title={title} first={first} count={count} empty={empty}>
+    <Row title={title} first={first} count={count} empty={empty} carousel={carousel}>
       {tiles.map((t, i) => {
         const progress = t.needs != null ? lib.installing[t.needs] : undefined
         const missing = lib.loaded && t.needs != null && !installed.has(t.needs)

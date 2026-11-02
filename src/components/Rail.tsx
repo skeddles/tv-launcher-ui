@@ -27,6 +27,7 @@ function RailButton({ screen, label, icon }: { screen: Screen; label: string; ic
       onClick={() => goTo(screen)}
     >
       <Icon name={icon} />
+      <span className="rail__label">{label}</span>
     </button>
   )
 }

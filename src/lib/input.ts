@@ -31,7 +31,7 @@ export function dispatchAction(action: Action) {
   dispatch(action)
 }
 
-function dispatch(action: Action) {
+function dispatch(action: Action, repeat = false) {
   for (let i = interceptors.length - 1; i >= 0; i--) if (interceptors[i](action)) return
   switch (action) {
     case 'select':
@@ -49,7 +49,7 @@ function dispatch(action: Action) {
       openMenuForFocused()
       break
     default:
-      move(action)
+      move(action, repeat)
   }
 }
 
@@ -83,7 +83,7 @@ export function startInput(): () => void {
     }
     if (repeatable && now - h.since > REPEAT_DELAY && now - h.lastFire > REPEAT_RATE) {
       h.lastFire = now
-      dispatch(action)
+      dispatch(action, true)
     }
   }
 
@@ -135,7 +135,7 @@ export function startInput(): () => void {
     const action = KEYS[e.key]
     if (!action) return
     e.preventDefault()
-    dispatch(action)
+    dispatch(action, e.repeat)
   }
   window.addEventListener('keydown', onKey)
 

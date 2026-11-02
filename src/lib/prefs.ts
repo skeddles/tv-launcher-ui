@@ -51,7 +51,7 @@ export function forgetRecent(id: string) {
 }
 
 export function markRecent(id: string) {
-  setPrefs({ recent: [id, ...prefs.recent.filter((r) => r !== id)].slice(0, 12) })
+  setPrefs({ recent: [id, ...prefs.recent.filter((r) => r !== id)].slice(0, 20) })
 }
 
 // Presets for Settings > Background color (any dark colour can be picked too).

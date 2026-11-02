@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Dialog } from './components/Dialog'
 import { Rail } from './components/Rail'
+import { FocusRing } from './components/FocusRing'
 import { TileOptionsDialog } from './components/TileOptions'
 import { TypingScreen } from './components/TypingScreen'
 import { tv } from './lib/bridge'
@@ -119,6 +120,7 @@ export default function App() {
         />
       )}
       <TileOptionsDialog />
+      <FocusRing />
       {notice && (
         <div className="toast" role="status">
           {notice}

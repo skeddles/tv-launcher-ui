@@ -13,15 +13,12 @@ export function Home() {
   const lib = useLibrary()
   const recentIds = usePrefs((p) => p.recent)
   const everything = allTiles(lib)
-  const recent = recentIds
-    .map((id) => everything.find((t) => t.id === id))
-    .filter((t): t is NonNullable<typeof t> => Boolean(t))
-    .slice(0, 6)
+  const recent = recentIds.map((id) => everything.find((t) => t.id === id)).filter((t): t is NonNullable<typeof t> => Boolean(t))
 
   return (
     <>
       <Header title="Home" />
-      {recent.length > 0 && <TileRow first title="Recently Opened" tiles={recent} />}
+      {recent.length > 0 && <TileRow first carousel title="Recently Opened" tiles={recent} />}
       <TileRow first={recent.length === 0} title="Streaming" tiles={serviceTiles()} />
       <TileRow title="Games" tiles={gameTiles(lib.games)} />
       <TileRow title="Apps" tiles={appTiles(lib.flatpaks)} extra={<StoreTile row="Apps" />} />

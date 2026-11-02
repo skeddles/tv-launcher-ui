@@ -30,8 +30,17 @@ button {
 }
 
 .rail {
+  /* Floats over the page so it can widen (labels) without moving the tiles */
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 35;
   width: var(--rail-width);
-  flex-shrink: 0;
+  overflow: hidden;
+  transition:
+    width 0.16s ease,
+    box-shadow 0.16s ease;
   background: var(--rail-bg);
   display: flex;
   flex-direction: column;
@@ -55,7 +64,12 @@ button {
   border-radius: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 22px;
+  padding-left: calc((var(--rail-width) - 26px) / 2);
+  white-space: nowrap;
+  font-size: 22px;
+  font-weight: 500;
   background: transparent;
   color: var(--icon-inactive);
   cursor: pointer;
@@ -74,6 +88,7 @@ button {
 }
 
 .main {
+  margin-left: var(--rail-width);
   flex-grow: 1;
   min-width: 0;
   height: 100%;
@@ -813,4 +828,55 @@ html:not(.pointer-active) * {
   background: #ffffff;
   box-shadow: 0 1px 4px #00000099;
   transform: translate(-50%, -50%);
+}
+
+/* ---------- Rail: wider with labels while it has the highlight ---------- */
+
+.rail__label {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.rail:has(.is-focused) {
+  width: 280px;
+  box-shadow: 12px 0 40px #00000080;
+}
+.rail:has(.is-focused) .rail__label {
+  opacity: 1;
+}
+
+/* ---------- Recently Opened: one line that scrolls sideways ---------- */
+
+.row__grid--carousel {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - (var(--tile-columns) - 1) * var(--tile-gap)) / var(--tile-columns));
+  overflow: hidden;
+}
+
+/* ---------- The gliding highlight (components/FocusRing.tsx) ---------- */
+
+.has-focus-ring .is-focused {
+  outline-color: transparent !important;
+}
+.focus-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 45; /* over dialogs (40), under the opening-app cover (1000) */
+  border: 4px solid var(--focus-ring);
+  pointer-events: none;
+  opacity: 0;
+  box-sizing: border-box;
+  transition:
+    transform 0.14s cubic-bezier(0.25, 0.8, 0.3, 1),
+    width 0.14s cubic-bezier(0.25, 0.8, 0.3, 1),
+    height 0.14s cubic-bezier(0.25, 0.8, 0.3, 1),
+    border-radius 0.14s ease,
+    opacity 0.1s ease;
+}
+
+/* ---------- Settings tiles: the name on top ---------- */
+
+.setting-tile .tile__title {
+  order: -1;
 }
