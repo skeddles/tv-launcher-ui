@@ -113,13 +113,19 @@ function scan(): Found[] {
   for (const { dir, extra } of FOLDERS) {
     for (const sys of SYSTEMS) {
       const files = walk(join(dir, sys.id))
-      const hidden = new Set(files.flatMap(referenced))
+      const hidden = new Set<string>()
+      const broken = new Set<string>() // a cue sheet whose tracks aren't all there (yet)
+      for (const f of files) {
+        const refs = referenced(f)
+        refs.forEach((r) => hidden.add(r))
+        if (refs.some((r) => !existsSync(r))) broken.add(f)
+      }
       // One entry per game: the most preferred file type among same-named files
       const best = new Map<string, string>()
       for (const f of files) {
         const ext = extname(f).slice(1).toLowerCase()
         const rank = sys.exts.indexOf(ext)
-        if (rank < 0 || hidden.has(f)) continue
+        if (rank < 0 || hidden.has(f) || broken.has(f)) continue
         const key = join(dirname(f), basename(f, extname(f))).toLowerCase()
         const prev = best.get(key)
         if (!prev || rank < sys.exts.indexOf(extname(prev).slice(1).toLowerCase())) best.set(key, f)
