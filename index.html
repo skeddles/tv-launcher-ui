@@ -5,6 +5,27 @@
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="viewport" content="width=1920, initial-scale=1.0" />
     <title>TV Launcher</title>
+    <script>
+      // Safety net: right after a reboot the page has come up blank (the live dev
+      // server still starting). If the launcher hasn't started 15 s after the
+      // page loaded, reload, up to 3 times in a row.
+      ;(function () {
+        var key = 'tvlauncher.bootReloads'
+        var tries = 0
+        try {
+          tries = Number(sessionStorage.getItem(key)) || 0
+        } catch (e) {}
+        setTimeout(function () {
+          try {
+            if (window.__tvRemote) return sessionStorage.removeItem(key)
+            if (tries < 3) {
+              sessionStorage.setItem(key, String(tries + 1))
+              location.reload()
+            }
+          } catch (e) {}
+        }, 15000)
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
