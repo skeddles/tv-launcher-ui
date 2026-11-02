@@ -59,7 +59,7 @@ function fromWords(genres: string[]): string | null {
 // ---------- names ----------
 
 export function normTitle(name: string): string {
-  let t = name.replace(/\.[a-z0-9]{2,4}$/i, '')
+  let t = name.replace(/\.[a-z0-9]{2,4}$/i, '').replace(/\.nkit$/i, '')
   t = t.replace(/^\d{3,5}\s+-\s+/, '')
   t = t.replace(/\s*(\([^)]*\)|\[[^\]]*\])/g, '')
   t = t.replace(/^(.*), (the|a|an)( - .*)?$/i, (_m, a: string, b: string, rest = '') => `${b} ${a}${rest}`)

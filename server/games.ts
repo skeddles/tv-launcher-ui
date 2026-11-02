@@ -141,7 +141,7 @@ function scan(): Found[] {
 
 /** "Legend of Zelda, The - A Link to the Past (U) [!]" -> "The Legend of Zelda - A Link to the Past" */
 export function cleanTitle(file: string): string {
-  let t = basename(file, extname(file))
+  let t = basename(file, extname(file)).replace(/\.nkit$/i, '')
   t = t.replace(/^\d{3,5}\s+-\s+/, '') // "0907 - Pokemon Ruby" release numbers
   t = t.replace(/\s*(\([^)]*\)|\[[^\]]*\])/g, '') // (USA) [!] (Rev 1)
   // "Smash_Remix_1.5.2" -> "Smash Remix 1.5.2", "Breath.Of.Fire.4" -> "Breath Of Fire 4"
