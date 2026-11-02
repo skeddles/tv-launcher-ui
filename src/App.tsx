@@ -14,7 +14,8 @@ import { startPointerWatch } from './lib/pointer'
 import { getPlace, goTo, setPlace, usePlace, type Screen } from './lib/place'
 import { Browse } from './screens/Browse'
 import { Home } from './screens/Home'
-import { Library } from './screens/Library'
+import { Apps } from './screens/Apps'
+import { Games } from './screens/Games'
 import { Search } from './screens/Search'
 import { Settings } from './screens/Settings'
 import { Store } from './screens/Store'
@@ -27,8 +28,10 @@ function ScreenView({ screen }: { screen: Screen }) {
       return <Browse title="Movies" tag="movies" />
     case 'tv':
       return <Browse title="TV Shows" tag="tv" />
-    case 'library':
-      return <Library />
+    case 'apps':
+      return <Apps />
+    case 'games':
+      return <Games />
     case 'store':
       return <Store />
     case 'settings':
@@ -43,7 +46,7 @@ function defaultBack(): boolean {
   const { screen } = getPlace()
   const el = currentElement()
   if (screen === 'store') {
-    setPlace({ screen: 'library', focusId: null })
+    setPlace({ screen: 'apps', focusId: null })
     return true
   }
   if (el && el.dataset.focusGroup !== 'rail') {

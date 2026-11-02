@@ -257,7 +257,7 @@ export function Settings() {
       {adjusting === 'tileSize' && (
         <Adjust
           title="Tile size"
-          hint="How big the tiles are on Home, Library and Settings."
+          hint="How big the tiles are on every screen."
           value={`${tileSizeName} · ${tileColumns} per row`}
           onStep={stepAdjust}
           onClose={closeAdjust}

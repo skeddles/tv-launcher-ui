@@ -7,15 +7,16 @@ const tabs: Array<{ screen: Screen; label: string; icon: IconName }> = [
   { screen: 'home', label: 'Home', icon: 'home' },
   { screen: 'movies', label: 'Movies', icon: 'movies' },
   { screen: 'tv', label: 'TV Shows', icon: 'tv' },
-  { screen: 'library', label: 'Library', icon: 'library' },
+  { screen: 'apps', label: 'Apps', icon: 'apps' },
+  { screen: 'games', label: 'Games', icon: 'gamepad' },
 ]
 
 function RailButton({ screen, label, icon }: { screen: Screen; label: string; icon: IconName }) {
   const id = `rail:${screen}`
   const focused = useFocused(id)
   const current = usePlace((p) => p.screen)
-  // The store lives under Library in the rail.
-  const active = current === screen || (screen === 'library' && current === 'store')
+  // The store lives under Apps in the rail.
+  const active = current === screen || (screen === 'apps' && current === 'store')
   return (
     <button
       type="button"

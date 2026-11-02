@@ -4,7 +4,7 @@
 
 import { useSyncExternalStore } from 'react'
 
-export type Screen = 'search' | 'home' | 'movies' | 'tv' | 'library' | 'store' | 'settings'
+export type Screen = 'search' | 'home' | 'movies' | 'tv' | 'apps' | 'games' | 'store' | 'settings'
 
 export interface Place {
   screen: Screen
@@ -20,7 +20,11 @@ const KEY = 'tvlauncher.place.v1'
 function load(): Place {
   try {
     const raw = sessionStorage.getItem(KEY)
-    if (raw) return { ...defaults(), ...JSON.parse(raw) }
+    if (raw) {
+      const p = { ...defaults(), ...JSON.parse(raw) }
+      if (p.screen === 'library') p.screen = 'apps' // the old Library tab (split into Apps and Games)
+      return p
+    }
   } catch {
     /* storage unavailable: start fresh */
   }

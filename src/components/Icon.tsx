@@ -5,6 +5,7 @@ const paths = {
   movies: 'M4 5h16v14H4z M8 5v14 M16 5v14 M4 12h16',
   tv: 'M3 7h18v12H3z M8 3l4 4 4-4',
   library: 'M5 4v16 M10 4v16 M15 5l4 15',
+  apps: 'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h6v6h-6z',
   settings:
     'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z M12 2v3 M12 19v3 M2 12h3 M19 12h3 M4.9 4.9l2.1 2.1 M17 17l2.1 2.1 M4.9 19.1L7 17 M17 7l2.1-2.1',
   store: 'M4 7h16l-1 13H5z M9 7a3 3 0 0 1 6 0',
