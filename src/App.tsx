@@ -67,7 +67,7 @@ function defaultBack(): boolean {
 export default function App() {
   const screen = usePlace((p) => p.screen)
   const notice = useLibrary().notice
-  // Set while another app is waiting for text (Y in mouse mode).
+  // Set while another app is waiting for text (a text field was clicked).
   const [typingFor, setTypingFor] = useState<{ label: string; password: boolean } | null>(null)
   // Set after the Xbox button left a Steam game running behind the launcher.
   const [running, setRunning] = useState<{ label: string; quitLabel: string } | null>(null)

@@ -301,8 +301,8 @@ export function Settings() {
             <dd>Scroll</dd>
             <dt>A / B</dt>
             <dd>Click / right-click (after using the D-pad: Enter / Back)</dd>
-            <dt>Y</dt>
-            <dd>Keyboard: type, then Send</dd>
+            <dt>Text field</dt>
+            <dd>Click it (A) and the keyboard opens: type, then Send</dd>
             <dt>X</dt>
             <dd>Space (play/pause most videos)</dd>
             <dt>D-pad</dt>

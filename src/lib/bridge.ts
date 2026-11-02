@@ -60,7 +60,7 @@ export type ShellEvent =
   | { type: 'web-closed' }
   | { type: 'install-progress'; appId: string; percent: number }
   | { type: 'notice'; message: string }
-  // In mouse mode the controller's Y asks for the keyboard to type into another app.
+  // A text field was clicked in another app: show the keyboard and type into it.
   | { type: 'keyboard-request'; label: string; password?: boolean }
   | { type: 'keyboard-closed' }
   | { type: 'mouse-mode'; on: boolean; label: string | null }

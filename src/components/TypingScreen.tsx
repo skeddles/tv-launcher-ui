@@ -1,4 +1,4 @@
-// Shown when you click a text field (A) or press Y in mouse mode in another app:
+// Shown when you click a text field (A) in another app:
 // type here with the controller, then the text is typed into that app.
 // Cage can only show one window at a time, so this is a full screen rather
 // than a strip at the bottom of the app.
