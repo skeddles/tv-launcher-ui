@@ -45,7 +45,7 @@ export function Dialog({
         <h2 className="dialog__title">{title}</h2>
         {message && <p className="muted">{message}</p>}
         {children}
-        <div className="list">
+        <div className="list dialog__list" data-scroll>
           {options.map((o, i) => (
             <Option key={o.label} id={`dialog:${i}`} {...o} />
           ))}

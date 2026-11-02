@@ -9,6 +9,8 @@ export interface OpenTileMenu {
   key: string // tile id, e.g. 'netflix' or 'flatpak:org.mozilla.firefox'
   title: string
   hasLogo: boolean
+  row?: string // the row the tile is in
+  genre?: string
 }
 
 let open: OpenTileMenu | null = null
@@ -30,7 +32,13 @@ export function openMenuForFocused(): boolean {
   const el = currentElement()
   const key = el?.dataset.tileKey
   if (!el || !key) return false
-  openTileMenu({ key, title: el.getAttribute('aria-label') || key, hasLogo: el.dataset.tileLogo === 'true' })
+  openTileMenu({
+    key,
+    title: el.getAttribute('aria-label') || key,
+    hasLogo: el.dataset.tileLogo === 'true',
+    row: el.dataset.tileRow,
+    genre: el.dataset.tileGenre,
+  })
   return true
 }
 

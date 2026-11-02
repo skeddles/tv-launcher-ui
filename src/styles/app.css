@@ -526,6 +526,14 @@ button {
   gap: 20px;
 }
 
+.dialog__list {
+  max-height: 62vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding: 8px; /* room for the highlight */
+  margin: -8px;
+}
+
 .dialog__title {
   margin: 0;
   font-size: 32px;

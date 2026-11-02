@@ -3,12 +3,13 @@
 // Picking a game offers to get it in the itch app, which signs in, buys and
 // downloads; games it installed show at the top and on the Games page.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Dialog } from '../components/Dialog'
 import { Header } from '../components/Header'
 import { Row } from '../components/Row'
 import { Tile } from '../components/Tile'
 import { currentElement, focusContent } from '../lib/focus'
+import { hiddenSets, itemHidden, rowHidden, useHidden } from '../lib/hidden'
 import { install, isInstalled, notify, useLibrary } from '../lib/library'
 import {
   browseItch,
@@ -63,13 +64,19 @@ function ItchRow({ title, sort, genre, first, onPick }: { title: string; sort?: 
   useEffect(() => {
     if (first && loaded && currentElement()?.dataset.focusGroup === 'rail') focusContent()
   }, [first, loaded])
-  if (games && games.length === 0) return null
+  const rules = useHidden()
+  const h = useMemo(() => hiddenSets(rules), [rules])
+  const shown = (games ?? []).filter((g) => !itemHidden(h, `itch:${g.url}`, g.genre))
+  if ((games && shown.length === 0) || rowHidden(h, title)) return null
   return (
-    <Row carousel first={first} title={title} count={games?.length ?? 0} empty="Loading…" onNearEnd={more}>
-      {(games ?? []).map((g, i) => (
+    <Row carousel first={first} title={title} count={shown.length} empty="Loading…" onNearEnd={more}>
+      {shown.map((g, i) => (
         <Tile
           key={g.url}
           id={`itch:${title}:${g.url}`}
+          optionsKey={`itch:${g.url}`}
+          rowTitle={title}
+          genre={g.genre ?? undefined}
           title={g.title}
           subtitle={g.genre ?? undefined}
           color="var(--tile-bg)"

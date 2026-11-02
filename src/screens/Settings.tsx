@@ -3,6 +3,8 @@ import { Adjust } from '../components/Adjust'
 import { BackgroundPicker } from '../components/BackgroundPicker'
 import { Dialog } from '../components/Dialog'
 import { Header } from '../components/Header'
+import { HiddenSettings } from '../components/HiddenSettings'
+import { useHidden } from '../lib/hidden'
 import { Row } from '../components/Row'
 import { SettingTile } from '../components/SettingTile'
 import { accents } from '../data/catalog'
@@ -87,6 +89,9 @@ export function Settings() {
   const close = useCallback(() => setConfirm(null), [])
   const closeAdjust = useCallback(() => setAdjusting(null), [])
   const closeInfo = useCallback(() => setShowInfo(null), [])
+  const [showHidden, setShowHidden] = useState(false)
+  const closeHidden = useCallback(() => setShowHidden(false), [])
+  const hiddenCount = useHidden().length
 
   useEffect(() => {
     tv.systemInfo()
@@ -232,6 +237,15 @@ export function Settings() {
         <SettingTile id="settings:guide" icon="gamepad" label="Controller guide" onSelect={() => setShowInfo('guide')} />
       </Row>
 
+      <Row title="What's shown" count={1}>
+        <SettingTile
+          id="settings:hidden"
+          label="Hidden things"
+          value={hiddenCount ? `${hiddenCount} hidden` : 'Nothing hidden'}
+          onSelect={() => setShowHidden(true)}
+        />
+      </Row>
+
       <Row title="System" count={7}>
         <SettingTile id="settings:update" label="System update" value={updateTileValue} onSelect={updateAction} />
         <SettingTile id="settings:claude" icon="link" label="Connect Claude" onSelect={connectClaude} />
@@ -339,6 +353,7 @@ export function Settings() {
           ]}
         />
       )}
+      {showHidden && <HiddenSettings onClose={closeHidden} />}
       {showInfo === 'about' && (
         <Dialog title="About" onClose={closeInfo} options={[{ label: 'Done', onSelect: closeInfo }]}>
           {info ? (

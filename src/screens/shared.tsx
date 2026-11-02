@@ -2,14 +2,15 @@ import { commonsImage } from '../data/catalog'
 import { Row } from '../components/Row'
 import { Tile } from '../components/Tile'
 import { activate, useLibrary, type TileModel } from '../lib/library'
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { hiddenSets, itemHidden, rowHidden, useHidden } from '../lib/hidden'
 
 const FIRST_TILES = 60 // tiles drawn at first; more are added as you scroll right
 const MORE_TILES = 60
 
 export function TileRow({
   title,
-  tiles,
+  tiles: allTiles,
   first,
   empty,
   extra,
@@ -26,6 +27,15 @@ export function TileRow({
 }) {
   const lib = useLibrary()
   const installed = new Set(lib.flatpaks.map((f) => f.appId))
+  // Hidden things (Settings > Hidden): the whole row, or items in it
+  const rules = useHidden()
+  const h = useMemo(() => hiddenSets(rules), [rules])
+  const rowIsHidden = rowHidden(h, title)
+  const visible = useMemo(
+    () => (rules.length ? allTiles.filter((t) => !itemHidden(h, t.id, t.genre)) : allTiles),
+    [allTiles, h, rules.length],
+  )
+  const tiles = visible
   // Long rows (thousands of games) are drawn a screenful at a time
   const [limit, setLimit] = useState(FIRST_TILES)
   const shown = tiles.length > limit ? tiles.slice(0, limit) : tiles
@@ -35,6 +45,7 @@ export function TileRow({
     else onNearEnd?.()
   }, [more, onNearEnd])
   const count = tiles.length + (extra ? 1 : 0)
+  if (rowIsHidden || (tiles.length === 0 && !extra && !empty && allTiles.length > 0)) return null
   return (
     <Row title={title} first={first} count={count} empty={empty} carousel={carousel} onNearEnd={nearEnd}>
       {shown.map((t, i) => {
@@ -53,6 +64,8 @@ export function TileRow({
             art={t.art}
             tag={t.tag}
             optionsKey={t.id}
+            rowTitle={title}
+            genre={t.genre}
             badge={progress != null ? 'Installing' : missing ? 'Install' : undefined}
             progress={progress ?? t.progress ?? undefined}
             subtitle={t.subtitle}

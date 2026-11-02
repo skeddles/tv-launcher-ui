@@ -4,6 +4,7 @@ import { forgetRecent, usePrefs } from '../lib/prefs'
 import { closeTileMenu, setTileOptions, titleShown, useTileMenu, useTileOptions } from '../lib/tileMenu'
 import { Dialog, type DialogOption } from './Dialog'
 import { openGameInfo } from '../lib/gameInfo'
+import { hide } from '../lib/hidden'
 
 /** Options for one tile: Menu ☰ on the controller, or right-click. */
 export function TileOptionsDialog() {
@@ -77,6 +78,34 @@ export function TileOptionsDialog() {
       label: 'Remove from Recently Opened',
       onSelect: () => {
         forgetRecent(menu.key)
+        close()
+      },
+    })
+  }
+  // Hiding: this tile, its genre, or the row it's in (undo in Settings > Hidden)
+  items.push({
+    label: 'Hide this',
+    onSelect: () => {
+      hide({ kind: 'item', value: menu.key, label: menu.title })
+      close()
+    },
+  })
+  if (menu.genre) {
+    const genre = menu.genre
+    items.push({
+      label: `Hide all ${genre}`,
+      onSelect: () => {
+        hide({ kind: 'genre', value: genre, label: genre })
+        close()
+      },
+    })
+  }
+  if (menu.row) {
+    const row = menu.row
+    items.push({
+      label: `Hide the row “${row}”`,
+      onSelect: () => {
+        hide({ kind: 'row', value: row, label: row })
         close()
       },
     })

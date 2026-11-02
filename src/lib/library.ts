@@ -25,6 +25,7 @@ export interface TileModel {
   logoTone?: 'white' | 'invert'
   art?: string // box art, shown whole on a blurred copy of itself (emulated games)
   romId?: string // an emulated game (games.ts)
+  genre?: string // for hiding by genre (hidden.ts)
   tag?: string // a short label on the art, telling copies of one game apart (region, version)
   unplayable?: string // why it can't start yet
   subtitle?: string

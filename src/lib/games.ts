@@ -70,6 +70,7 @@ export function romTile(g: RomGame, systems: RomSystem[]): TileModel {
     launch: g.args ? { kind: 'flatpak', appId: RETROARCH, args: g.args } : { kind: 'flatpak', appId: RETROARCH },
     needs: RETROARCH,
     romId: g.id,
+    genre: g.genre ?? undefined,
     unplayable: g.args ? undefined : `No emulator for ${system} games is set up yet`,
     kind: 'game',
   }
