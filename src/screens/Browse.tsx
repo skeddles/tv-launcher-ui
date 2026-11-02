@@ -17,7 +17,7 @@ const MORE_ROWS = 4 // added each time you scroll near the bottom
 
 /** One row: Plex items, or tiles from the row's own loader (Netflix), which
  *  fetches another page each time you scroll near the end. */
-function MediaRow({ row }: { row: RowDef }) {
+export function MediaRow({ row, title }: { row: RowDef; title?: string }) {
   const [tiles, setTiles] = useState<TileModel[] | null>(null)
   const page = useRef(0)
   const busy = useRef(false)
@@ -49,7 +49,7 @@ function MediaRow({ row }: { row: RowDef }) {
       .finally(() => (busy.current = false))
   }, [row])
   if (!tiles || tiles.length === 0) return null
-  return <TileRow carousel title={row.title} tiles={tiles} onNearEnd={more} />
+  return <TileRow carousel title={title ?? row.title} tiles={tiles} onNearEnd={more} />
 }
 
 export function Browse({ title, tag }: { title: string; tag: Tag }) {

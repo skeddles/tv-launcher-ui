@@ -1,6 +1,11 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Header } from '../components/Header'
+import { suggestedRows } from '../lib/games'
+import { netflixCatalog } from '../lib/netflixRows'
+import { catalog, orderRows, type PlexKind, type RowDef } from '../lib/plexRows'
+import { MediaRow } from './Browse'
 import { Tile } from '../components/Tile'
-import { allTiles, appTiles, gameTiles, plexTiles, serviceTiles, useLibrary } from '../lib/library'
+import { allTiles, appTiles, gameTiles, plexTiles, romTiles, serviceTiles, useLibrary } from '../lib/library'
 import { goTo } from '../lib/place'
 import { usePrefs } from '../lib/prefs'
 import { ContinueRow, FavoritesRow } from './Games'
@@ -8,6 +13,97 @@ import { TileRow } from './shared'
 
 export function StoreTile({ row }: { row: string }) {
   return <Tile id={`${row}:store`} title="App Store" color="var(--tile-bg)" onSelect={() => goTo('store')} />
+}
+
+// Below the fixed rows: rows from the other tabs (Movies, TV Shows, Games),
+// mixed in a fresh random order each visit, added as you scroll down.
+const FIRST_MIX = 3
+const MORE_MIX = 3
+
+type MixRow = { key: string; title: string; media?: RowDef; games?: string } // games: suggested row key
+
+const noun = (k: PlexKind) => (k === 'movie' ? 'Movies' : 'TV')
+
+/** A media row's name on Home, saying which tab it's from when the name alone doesn't. */
+function mediaTitle(r: RowDef, kind: PlexKind): string {
+  if (/\b(movies|shows)\b/i.test(r.title)) return r.title // "1990s movies", "Unwatched shows"
+  return `${r.title} · ${noun(kind)}`
+}
+
+/** Take rows from several lists in turn, picking the list at random each time (bigger lists more often). */
+function interleave(lists: MixRow[][]): MixRow[] {
+  const pools = lists.map((l) => [...l]).filter((l) => l.length)
+  const out: MixRow[] = []
+  while (pools.length) {
+    const total = pools.reduce((t, l) => t + l.length, 0)
+    let r = Math.random() * total
+    const i = Math.max(
+      0,
+      pools.findIndex((l) => (r -= l.length) < 0),
+    )
+    out.push(pools[i].shift()!)
+    if (!pools[i].length) pools.splice(i, 1)
+  }
+  return out
+}
+
+function HomeMix() {
+  const lib = useLibrary()
+  const [media, setMedia] = useState<MixRow[][] | null>(null)
+  const [seed] = useState(() => Math.floor(Math.random() * 2147483646) + 1)
+  const [shown, setShown] = useState(FIRST_MIX)
+  const sentinel = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let live = true
+    const kinds: PlexKind[] = ['movie', 'show']
+    Promise.all(
+      kinds.map((k) =>
+        Promise.all([catalog(k).catch(() => [] as RowDef[]), netflixCatalog(k).catch(() => [] as RowDef[])]).then(([plex, netflix]) =>
+          orderRows([...plex, ...netflix]).map((r) => ({ key: `${k}:${r.key}`, title: mediaTitle(r, k), media: r })),
+        ),
+      ),
+    ).then((lists) => live && setMedia(lists))
+    return () => {
+      live = false
+    }
+  }, [])
+
+  const gameRows = useMemo(() => suggestedRows(lib.roms, seed), [lib.roms, seed])
+  const mix = useMemo(() => {
+    if (!media) return []
+    const games: MixRow[] = gameRows.map((r) => ({
+      key: `games:${r.key}`,
+      title: r.key.startsWith('sys:') || r.key === 'picked' ? `${r.title}${r.key === 'picked' ? ' · Games' : ' games'}` : `${r.title} · Games`,
+      games: r.key,
+    }))
+    return interleave([...media, games])
+    // Keep one order for the visit; the games' row contents can still update
+  }, [media, gameRows.length])
+
+  useEffect(() => {
+    const el = sentinel.current
+    if (!el || !mix.length) return
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setShown((n) => Math.min(mix.length, n + MORE_MIX))
+      },
+      { root: el.closest('[data-scroll]'), rootMargin: '0px 0px 900px 0px' },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [mix, shown])
+
+  return (
+    <>
+      {mix.slice(0, shown).map((m) => {
+        if (m.media) return <MediaRow key={m.key} row={m.media} title={m.title} />
+        const g = gameRows.find((r) => r.key === m.games)
+        return g ? <TileRow key={m.key} carousel title={m.title} tiles={romTiles(lib, g.games)} /> : null
+      })}
+      <div ref={sentinel} aria-hidden="true" style={{ height: 1 }} />
+    </>
+  )
 }
 
 export function Home() {
@@ -31,6 +127,7 @@ export function Home() {
       )}
       <TileRow title="Games" tiles={gameTiles(lib.games)} />
       <TileRow title="Apps" tiles={appTiles(lib.flatpaks)} extra={<StoreTile row="Apps" />} />
+      <HomeMix />
     </>
   )
 }
