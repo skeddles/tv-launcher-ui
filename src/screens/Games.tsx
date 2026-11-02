@@ -61,6 +61,8 @@ export function Games() {
           carousel
           title={r.title}
           tiles={romTiles(lib, r.games)}
+          domain="games"
+          rowGenre={r.key.startsWith('genre:') ? r.key.slice(6) : undefined}
         />
       ))}
       <TileRow first={!hasRecent && !romsLoaded} title="Steam" tiles={gameTiles(lib.games)} />
@@ -71,6 +73,8 @@ export function Games() {
           carousel
           title={r.title}
           tiles={romTiles(lib, r.games)}
+          domain="games"
+          rowGenre={r.key.startsWith('genre:') ? r.key.slice(6) : undefined}
         />
       ))}
       <TileRow title="More" tiles={romsLoaded ? [emulatorSettingsTile] : []} extra={<AllGamesTile row="More" />} />

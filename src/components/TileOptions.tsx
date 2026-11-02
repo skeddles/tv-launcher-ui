@@ -4,7 +4,7 @@ import { forgetRecent, usePrefs } from '../lib/prefs'
 import { closeTileMenu, setTileOptions, titleShown, useTileMenu, useTileOptions } from '../lib/tileMenu'
 import { Dialog, type DialogOption } from './Dialog'
 import { openGameInfo } from '../lib/gameInfo'
-import { hide } from '../lib/hidden'
+import { DOMAIN_NAME, hide, type Domain } from '../lib/hidden'
 
 /** Options for one tile: Menu ☰ on the controller, or right-click. */
 export function TileOptionsDialog() {
@@ -90,12 +90,14 @@ export function TileOptionsDialog() {
       close()
     },
   })
-  if (menu.genre) {
-    const genre = menu.genre
+  // A genre: the game's own, else the one the row is about. Games and movies & TV keep separate genres.
+  const genre = menu.genre ?? menu.rowGenre
+  const domain: Domain | undefined = menu.genre ? 'games' : menu.rowDomain
+  if (genre && domain) {
     items.push({
-      label: `Hide all ${genre}`,
+      label: `Hide all ${genre} ${domain === 'games' ? 'games' : '(movies & TV)'}`,
       onSelect: () => {
-        hide({ kind: 'genre', value: genre, label: genre })
+        hide({ kind: 'genre', value: genre, label: `${genre} (${DOMAIN_NAME[domain]})`, domain })
         close()
       },
     })

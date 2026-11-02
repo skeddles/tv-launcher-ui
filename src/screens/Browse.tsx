@@ -49,7 +49,8 @@ export function MediaRow({ row, title }: { row: RowDef; title?: string }) {
       .finally(() => (busy.current = false))
   }, [row])
   if (!tiles || tiles.length === 0) return null
-  return <TileRow carousel title={title ?? row.title} tiles={tiles} onNearEnd={more} />
+  const genre = /^(netflix:)?genre:/.test(row.key) ? row.key.replace(/^(netflix:)?genre:/, '') : undefined
+  return <TileRow carousel title={title ?? row.title} tiles={tiles} onNearEnd={more} domain="video" rowGenre={genre} />
 }
 
 export function Browse({ title, tag }: { title: string; tag: Tag }) {

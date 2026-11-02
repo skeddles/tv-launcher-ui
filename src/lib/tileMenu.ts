@@ -10,7 +10,9 @@ export interface OpenTileMenu {
   title: string
   hasLogo: boolean
   row?: string // the row the tile is in
-  genre?: string
+  genre?: string // the game's genre
+  rowGenre?: string // the genre the row is about
+  rowDomain?: 'games' | 'video'
 }
 
 let open: OpenTileMenu | null = null
@@ -38,6 +40,8 @@ export function openMenuForFocused(): boolean {
     hasLogo: el.dataset.tileLogo === 'true',
     row: el.dataset.tileRow,
     genre: el.dataset.tileGenre,
+    rowGenre: el.dataset.rowGenre,
+    rowDomain: el.dataset.rowDomain as 'games' | 'video' | undefined,
   })
   return true
 }

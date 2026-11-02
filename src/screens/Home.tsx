@@ -101,7 +101,16 @@ function HomeMix() {
       {mix.slice(0, shown).map((m) => {
         if (m.media) return <MediaRow key={m.key} row={m.media} title={m.title} />
         const g = gameRows.find((r) => r.key === m.games)
-        return g ? <TileRow key={m.key} carousel title={m.title} tiles={romTiles(lib, g.games)} /> : null
+        return g ? (
+          <TileRow
+            key={m.key}
+            carousel
+            title={m.title}
+            tiles={romTiles(lib, g.games)}
+            domain="games"
+            rowGenre={g.key.startsWith('genre:') ? g.key.slice(6) : undefined}
+          />
+        ) : null
       })}
       <div ref={sentinel} aria-hidden="true" style={{ height: 1 }} />
     </>

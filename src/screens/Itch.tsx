@@ -67,7 +67,7 @@ function ItchRow({ title, sort, genre, first, onPick }: { title: string; sort?: 
   const rules = useHidden()
   const h = useMemo(() => hiddenSets(rules), [rules])
   const shown = (games ?? []).filter((g) => !itemHidden(h, `itch:${g.url}`, g.genre))
-  if ((games && shown.length === 0) || rowHidden(h, title)) return null
+  if ((games && shown.length === 0) || rowHidden(h, title, 'games')) return null
   return (
     <Row carousel first={first} title={title} count={shown.length} empty="Loading…" onNearEnd={more}>
       {shown.map((g, i) => (
@@ -77,6 +77,7 @@ function ItchRow({ title, sort, genre, first, onPick }: { title: string; sort?: 
           optionsKey={`itch:${g.url}`}
           rowTitle={title}
           genre={g.genre ?? undefined}
+          rowDomain="games"
           title={g.title}
           subtitle={g.genre ?? undefined}
           color="var(--tile-bg)"

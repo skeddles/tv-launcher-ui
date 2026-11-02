@@ -11,7 +11,9 @@ export interface TileProps {
   logo?: string // URL of a logo that fills the tile (the name is then hidden by default)
   logoTone?: 'white' | 'invert'
   rowTitle?: string // the row it's in (tile options: hide the row)
-  genre?: string // tile options: hide this genre
+  genre?: string // tile options: hide this (game) genre
+  rowGenre?: string // the genre the row is about
+  rowDomain?: 'games' | 'video'
   tag?: string // small label at the bottom (which copy of a game this is)
   art?: string // box art: shown whole over a blurred copy (the name is then hidden by default)
   // Tile id for per-tile options (Menu ☰ / right-click); tiles without one have no options
@@ -34,6 +36,8 @@ export function Tile({
   art,
   rowTitle,
   genre,
+  rowGenre,
+  rowDomain,
   tag,
   optionsKey,
   subtitle,
@@ -66,11 +70,13 @@ export function Tile({
       data-tile-logo={showLogo || undefined}
       data-tile-row={rowTitle}
       data-tile-genre={genre}
+      data-row-genre={rowGenre}
+      data-row-domain={rowDomain}
       onClick={onSelect}
       onContextMenu={(e) => {
         if (!optionsKey) return
         e.preventDefault()
-        openTileMenu({ key: optionsKey, title, hasLogo: showLogo, row: rowTitle, genre })
+        openTileMenu({ key: optionsKey, title, hasLogo: showLogo, row: rowTitle, genre, rowGenre, rowDomain })
       }}
       aria-label={title}
     >
