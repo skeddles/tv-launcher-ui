@@ -15,7 +15,9 @@ import type { Plugin } from 'vite'
 
 const UA = 'Mozilla/5.0 (X11; Linux x86_64) tvlauncher/0.1'
 const SORTS = new Set(['', 'top-rated', 'new-and-popular', 'newest', 'free', 'top-sellers', 'on-sale'])
-const GENRES = new Set(['action', 'adventure', 'card-game', 'educational', 'fighting', 'interactive-fiction', 'platformer', 'puzzle', 'racing', 'rhythm', 'role-playing', 'shooter', 'simulation', 'sports', 'strategy', 'survival', 'visual-novel', 'other'])
+// itch.io tags (tag-<name>); its genre- filters only cover some genres and
+// quietly fall back to the unfiltered list for the rest
+const GENRES = new Set(['action', 'adventure', 'platformer', 'puzzle', 'rpg', 'racing', 'fighting', 'shooter', 'rhythm', 'strategy', 'simulation', 'sports', 'survival', 'horror', 'visual-novel', 'card-game'])
 
 export interface ItchGame {
   url: string
@@ -73,15 +75,44 @@ function parse(xml: string): ItchGame[] {
   return out
 }
 
+// itch.io answers "429 Too Many Requests" when a page asks for many lists at
+// once: fetch them two at a time, and wait and try again once on a 429.
+let active = 0
+const waiting: Array<() => void> = []
+async function itchFetch(url: string): Promise<string> {
+  if (active >= 2) await new Promise<void>((r) => waiting.push(r))
+  active++
+  try {
+    for (let attempt = 0; ; attempt++) {
+      const res = await fetch(url, { headers: { 'user-agent': UA } })
+      if (res.status === 429 && attempt < 2) {
+        await new Promise((r) => setTimeout(r, 3000 * (attempt + 1)))
+        continue
+      }
+      if (!res.ok) throw new Error(`itch.io ${res.status}`)
+      return await res.text()
+    }
+  } finally {
+    active--
+    waiting.shift()?.()
+  }
+}
+
+/** The list's title says which filter itch.io applied: "Top Racing games for Linux…". A
+ *  filter it didn't know gives the unfiltered list ("Top games for…"): treat that as empty. */
+function filterApplied(xml: string): boolean {
+  const title = /<title>([^<]*)<\/title>/.exec(xml)?.[1] ?? ''
+  const before = title.split(/ games for /i)[0] ?? ''
+  const rest = before.replace(/^(Top rated|Top free|Top selling|New and popular|Newest|On sale|Top|Free)\b/i, '').trim()
+  return rest.length > 0
+}
+
 function browse(sort: string, genre: string, page: number): Promise<ItchGame[]> {
-  const parts = ['games', sort, genre && `genre-${genre}`, 'platform-linux', 'input-gamepad'].filter(Boolean)
+  const parts = ['games', sort, genre && `tag-${genre}`, 'platform-linux', 'input-gamepad'].filter(Boolean)
   const url = `https://itch.io/${parts.join('/')}.xml${page > 1 ? `?page=${page}` : ''}`
   const hit = cache.get(url)
   if (hit && Date.now() - hit.at < 30 * 60_000) return hit.data
-  const data = fetch(url, { headers: { 'user-agent': UA } }).then(async (res) => {
-    if (!res.ok) throw new Error(`itch.io ${res.status}`)
-    return parse(await res.text())
-  })
+  const data = itchFetch(url).then((xml) => (genre && !filterApplied(xml) ? [] : parse(xml)))
   data.catch(() => cache.delete(url))
   cache.set(url, { at: Date.now(), data })
   return data
