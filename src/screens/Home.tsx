@@ -70,16 +70,18 @@ function HomeMix() {
   }, [])
 
   const gameRows = useMemo(() => suggestedRows(lib.roms, seed), [lib.roms, seed])
+  // One order for the visit: it changes only when the set of game rows does
+  // (the games inside a row can still update)
+  const gameKeys = gameRows.map((r) => `${r.key}\t${r.title}`).join('\n')
   const mix = useMemo(() => {
     if (!media) return []
-    const games: MixRow[] = gameRows.map((r) => ({
-      key: `games:${r.key}`,
-      title: r.key.startsWith('sys:') || r.key === 'picked' ? `${r.title}${r.key === 'picked' ? ' · Games' : ' games'}` : `${r.title} · Games`,
-      games: r.key,
-    }))
+    const games: MixRow[] = (gameKeys ? gameKeys.split('\n') : []).map((line) => {
+      const [key, title] = line.split('\t')
+      const label = key === 'picked' ? `${title} · Games` : key.startsWith('sys:') ? `${title} games` : `${title} · Games`
+      return { key: `games:${key}`, title: label, games: key }
+    })
     return interleave([...media, games])
-    // Keep one order for the visit; the games' row contents can still update
-  }, [media, gameRows.length])
+  }, [media, gameKeys])
 
   useEffect(() => {
     const el = sentinel.current
