@@ -9,6 +9,7 @@ export type LaunchTarget =
   | { kind: 'steam'; appId: string }
   | { kind: 'steam-bigpicture' }
   | { kind: 'plex'; ratingKey: string } // a show or movie, started in Plex
+  | { kind: 'itch-game'; folder: string } // a game installed by the itch app, run without its window
   | { kind: 'local'; id: string } // one of your own apps (opened by the launcher itself, see localApps.ts)
 
 export interface PlexItem {

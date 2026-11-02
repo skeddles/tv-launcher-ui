@@ -127,8 +127,22 @@ async function gameInfo(url: string) {
   if (u.protocol !== 'https:' || !/^[a-z0-9-]+\.itch\.io$/i.test(u.hostname)) throw new Error('not an itch.io game page')
   const res = await fetch(`${u.origin}${u.pathname.replace(/\/$/, '')}/data.json`, { headers: { 'user-agent': UA } })
   if (!res.ok) throw new Error(`itch.io ${res.status}`)
-  const d = (await res.json()) as { id: number; title: string; cover_image?: string; screenshots?: string[]; authors?: Array<{ name: string }>; tags?: string[] }
-  return { id: d.id, title: d.title, image: d.cover_image ?? null, screenshots: d.screenshots ?? [], authors: (d.authors ?? []).map((a) => a.name), tags: d.tags ?? [] }
+  const d = (await res.json()) as {
+    id: number
+    title: string
+    cover_image?: string
+    screenshots?: string[]
+    authors?: Array<{ name: string }>
+    tags?: string[]
+  }
+  return {
+    id: d.id,
+    title: d.title,
+    image: d.cover_image ?? null,
+    screenshots: d.screenshots ?? [],
+    authors: (d.authors ?? []).map((a) => a.name),
+    tags: d.tags ?? [],
+  }
 }
 
 /** Games the itch app has installed (its local database; read only). */
@@ -141,10 +155,18 @@ async function installed() {
     try {
       const rows = conn
         .prepare(
-          `SELECT g.id AS id, g.title AS title, g.cover_url AS image, g.url AS url, c.last_touched_at AS touched
+          `SELECT g.id AS id, g.title AS title, g.cover_url AS image, g.url AS url, c.last_touched_at AS touched,
+                  c.install_folder_name AS folder
            FROM caves c JOIN games g ON g.id = c.game_id ORDER BY c.last_touched_at DESC`,
         )
-        .all() as Array<{ id: number; title: string; image: string | null; url: string | null; touched: string | null }>
+        .all() as Array<{
+        id: number
+        title: string
+        image: string | null
+        url: string | null
+        touched: string | null
+        folder: string | null // in ~/.var/app/io.itch.itch/config/itch/apps/ (started from there directly)
+      }>
       return rows
     } finally {
       conn.close()

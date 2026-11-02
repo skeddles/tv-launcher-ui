@@ -3,6 +3,7 @@
 // io.itch.itch), which handles sign-in, buying and downloads.
 
 import { tv } from './bridge'
+import { markAppOpened } from './appfront'
 
 export const ITCH_APP = 'io.itch.itch'
 
@@ -22,6 +23,7 @@ export interface InstalledItchGame {
   title: string
   image: string | null
   url: string | null
+  folder?: string | null // its folder in the itch app's apps folder
 }
 
 export interface ItchRowDef {
@@ -136,6 +138,23 @@ export async function itchGameId(url: string): Promise<number> {
 export async function installedItchGames(): Promise<InstalledItchGame[]> {
   const res = await fetch('/itch-api/installed').catch(() => null)
   return res?.ok ? ((await res.json()) as InstalledItchGame[]) : []
+}
+
+/** Start an installed game straight away, without the itch app's window (the
+ *  TV runs it the way the itch app would). Falls back to the itch app when the
+ *  TV can't (an older system, or no program found in the game's folder). */
+export async function playItchGame(g: InstalledItchGame, fallbackUrl: string) {
+  if (g.folder) {
+    try {
+      await tv.launch({ kind: 'itch-game', folder: g.folder }, g.title)
+      markAppOpened()
+      return
+    } catch (e) {
+      console.warn(`itch game ${g.title}: ${String(e)}; opening the itch app instead`)
+    }
+  }
+  await openInItch(fallbackUrl, g.title)
+  markAppOpened()
 }
 
 /** Open the itch app at an itch:// address: a game's page, its install, or launching it. */

@@ -22,6 +22,7 @@ import {
   itchPage,
   itchPlay,
   openInItch,
+  playItchGame,
   type InstalledItchGame,
   type ItchGame,
   type ItchRowDef,
@@ -113,7 +114,7 @@ export function ItchInstalledRow({ first }: { first?: boolean }) {
           title={g.title}
           color="var(--tile-bg)"
           image={g.image ?? undefined}
-          onSelect={() => void openInItch(itchPlay(g.id), g.title)}
+          onSelect={() => void playItchGame(g, itchPlay(g.id))}
         />
       ))}
     </Row>
@@ -169,7 +170,11 @@ export function Itch() {
       {picked && (
         <Dialog
           title={picked.title}
-          message={[picked.genre, picked.free ? 'Free' : picked.sale ? `${picked.price}, ${picked.sale}% off` : picked.price, picked.summary]
+          message={[
+            picked.genre,
+            picked.free ? 'Free' : picked.sale ? `${picked.price}, ${picked.sale}% off` : picked.price,
+            picked.summary,
+          ]
             .filter(Boolean)
             .join(' · ')}
           onClose={close}
