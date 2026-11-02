@@ -175,6 +175,40 @@ function hasAutoState(g: Found): boolean {
   return existsSync(join(STATES, basename(dirname(g.path)), name)) || existsSync(join(STATES, name))
 }
 
+/** Facts about one game's files, for its info screen. */
+function info(g: Found) {
+  const stem = basename(g.path, extname(g.path))
+  const folder = basename(dirname(g.path))
+  const fileInfo = (p: string) => {
+    try {
+      const st = statSync(p)
+      return { size: st.size, modified: st.mtimeMs }
+    } catch {
+      return null
+    }
+  }
+  // A disc game's size includes its track files
+  let size = statSync(g.path).size
+  for (const r of referenced(g.path)) size += fileInfo(r)?.size ?? 0
+  const core = coreFor(g.sys)
+  const others = scan()
+    .filter((o) => o.id !== g.id && o.sys.id === g.sys.id && cleanTitle(o.path).toLowerCase() === cleanTitle(g.path).toLowerCase())
+    .map((o) => ({ id: o.id, file: basename(o.path), extra: o.extra }))
+  return {
+    id: g.id,
+    file: basename(g.path),
+    folder: relative(GAMES, dirname(g.path)),
+    extra: g.extra,
+    system: g.sys.name,
+    size,
+    added: statSync(g.path).mtimeMs,
+    emulator: core ? basename(core).replace(/_libretro\.so$/, '') : null,
+    save: fileInfo(join(GAMES, 'Saves', folder, `${stem}.srm`)),
+    state: fileInfo(join(STATES, folder, `${stem}.state.auto`)),
+    others,
+  }
+}
+
 type History = Record<string, { at: number; plays: number }>
 
 function readHistory(): History {
@@ -392,6 +426,10 @@ async function handle(req: Req, res: Res, next: () => void) {
       if (!game) return json(res, 404, { error: 'no such game' })
       markPlayed(game.id)
       return json(res, 200, { ok: true, args: launchArgs(game) })
+    }
+    if (what === 'info') {
+      if (!game) return json(res, 404, { error: 'no such game' })
+      return json(res, 200, info(game))
     }
     if (what === 'art') {
       const file = game ? await art(game) : null

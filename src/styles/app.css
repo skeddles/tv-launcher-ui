@@ -242,6 +242,22 @@ button {
   color: #ffffff;
 }
 
+.tile__tag {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  max-width: calc(100% - 24px);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #000000b3;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .tile__progress {
   position: absolute;
   left: 0;

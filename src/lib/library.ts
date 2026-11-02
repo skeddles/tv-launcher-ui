@@ -9,6 +9,7 @@ import { useSyncExternalStore } from 'react'
 import { tv, type InstalledFlatpak, type LaunchTarget, type PlexHome, type PlexItem, type SteamGame } from './bridge'
 import { colorFor, hiddenApps, steamBigPicture, streaming, type Tag } from '../data/catalog'
 import { markRecent } from './prefs'
+import { romShortTags } from './romTags'
 import { fetchRoms, markPlayed, romTile, type RomGame, type RomLibrary } from './games'
 
 export interface TileModel {
@@ -24,6 +25,7 @@ export interface TileModel {
   logoTone?: 'white' | 'invert'
   art?: string // box art, shown whole on a blurred copy of itself (emulated games)
   romId?: string // an emulated game (games.ts)
+  tag?: string // a short label on the art, telling copies of one game apart (region, version)
   unplayable?: string // why it can't start yet
   subtitle?: string
   progress?: number | null // percent watched (Plex)
@@ -202,7 +204,27 @@ export function gameTiles(games: SteamGame[]): TileModel[] {
 }
 
 export function romTiles(s: LibraryState = state, games: RomGame[] = s.roms.games): TileModel[] {
-  return games.map((g) => romTile(g, s.roms.systems))
+  const dups = duplicateTitles(s.roms.games)
+  return games.map((g) => {
+    const t = romTile(g, s.roms.systems)
+    // Several copies of one game: say which this is (region, version...) under its name
+    const tags = dups.has(`${g.system}:${g.title.toLowerCase()}`) ? romShortTags(g.file, g.system) : ''
+    return tags ? { ...t, subtitle: `${t.subtitle} · ${tags}`, tag: tags } : t
+  })
+}
+
+let dupCache: { games: RomGame[]; dups: Set<string> } | null = null
+function duplicateTitles(games: RomGame[]): Set<string> {
+  if (dupCache?.games === games) return dupCache.dups
+  const seen = new Set<string>()
+  const dups = new Set<string>()
+  for (const g of games) {
+    const k = `${g.system}:${g.title.toLowerCase()}`
+    if (seen.has(k)) dups.add(k)
+    seen.add(k)
+  }
+  dupCache = { games, dups }
+  return dups
 }
 
 export function allTiles(s: LibraryState = state): TileModel[] {

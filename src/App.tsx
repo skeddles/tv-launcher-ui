@@ -3,6 +3,7 @@ import { Dialog } from './components/Dialog'
 import { Rail } from './components/Rail'
 import { FocusRing } from './components/FocusRing'
 import { TileOptionsDialog } from './components/TileOptions'
+import { GameInfoDialog } from './components/GameInfo'
 import { TypingScreen } from './components/TypingScreen'
 import { tv } from './lib/bridge'
 import { currentElement, focus, pushBack, startFocusWatcher } from './lib/focus'
@@ -130,6 +131,7 @@ export default function App() {
         />
       )}
       <TileOptionsDialog />
+      <GameInfoDialog />
       <FocusRing />
       {notice && (
         <div className="toast" role="status">

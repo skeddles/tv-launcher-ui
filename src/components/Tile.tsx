@@ -10,6 +10,7 @@ export interface TileProps {
   icon?: string
   logo?: string // URL of a logo that fills the tile (the name is then hidden by default)
   logoTone?: 'white' | 'invert'
+  tag?: string // small label at the bottom (which copy of a game this is)
   art?: string // box art: shown whole over a blurred copy (the name is then hidden by default)
   // Tile id for per-tile options (Menu ☰ / right-click); tiles without one have no options
   optionsKey?: string
@@ -29,6 +30,7 @@ export function Tile({
   logo,
   logoTone,
   art,
+  tag,
   optionsKey,
   subtitle,
   badge,
@@ -85,6 +87,7 @@ export function Tile({
         </span>
       )}
       {badge && <span className="tile__badge">{badge}</span>}
+      {tag && !showTitle && <span className="tile__tag">{tag}</span>}
       {progress != null && (
         <span className="tile__progress" aria-hidden="true">
           <span className="tile__progress-fill" style={{ width: `${progress}%` }} />

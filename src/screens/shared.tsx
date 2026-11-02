@@ -37,6 +37,7 @@ export function TileRow({
             logo={t.logo ? commonsImage(t.logo) : undefined}
             logoTone={t.logoTone}
             art={t.art}
+            tag={t.tag}
             optionsKey={t.id}
             badge={progress != null ? 'Installing' : missing ? 'Install' : undefined}
             progress={progress ?? t.progress ?? undefined}
