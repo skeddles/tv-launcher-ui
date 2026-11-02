@@ -11,22 +11,9 @@ import { Row } from '../components/Row'
 import { Tile } from '../components/Tile'
 import { currentElement, focusContent } from '../lib/focus'
 import { hiddenSets, itemHidden, rowHidden, useHidden } from '../lib/hidden'
-import { install, isInstalled, notify, useLibrary } from '../lib/library'
-import {
-  browseItch,
-  installedItchGames,
-  ITCH_APP,
-  itchRows,
-  itchGameId,
-  itchInstall,
-  itchPage,
-  itchPlay,
-  openInItch,
-  playItchGame,
-  type InstalledItchGame,
-  type ItchGame,
-  type ItchRowDef,
-} from '../lib/itch'
+import { install, isInstalled, itchTiles, notify, refreshItch, useLibrary } from '../lib/library'
+import { TileRow } from './shared'
+import { browseItch, ITCH_APP, itchRows, itchGameId, itchInstall, itchPage, openInItch, type ItchGame, type ItchRowDef } from '../lib/itch'
 
 const FIRST_ROWS = 6
 const MORE_ROWS = 4
@@ -98,27 +85,12 @@ function ItchRow({ row, first, onPick }: { row: ItchRowDef; first?: boolean; onP
   )
 }
 
-/** Games the itch app has installed: play them (through the itch app). */
+/** Games the itch app has installed: started directly, without the itch app's window. */
 export function ItchInstalledRow({ first }: { first?: boolean }) {
-  const [games, setGames] = useState<InstalledItchGame[]>([])
-  useEffect(() => {
-    void installedItchGames().then(setGames)
-  }, [])
-  if (games.length === 0) return null
-  return (
-    <Row carousel first={first} title="itch.io games" count={games.length}>
-      {games.map((g) => (
-        <Tile
-          key={g.id}
-          id={`itch-installed:${g.id}`}
-          title={g.title}
-          color="var(--tile-bg)"
-          image={g.image ?? undefined}
-          onSelect={() => void playItchGame(g, itchPlay(g.id))}
-        />
-      ))}
-    </Row>
-  )
+  const lib = useLibrary()
+  useEffect(() => void refreshItch(), [])
+  if (lib.itch.length === 0) return null
+  return <TileRow carousel first={first} title="itch.io games" tiles={itchTiles(lib.itch)} />
 }
 
 export function Itch() {

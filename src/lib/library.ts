@@ -12,6 +12,7 @@ import { romShortTags } from './romTags'
 import { deleteRomFiles, fetchRoms, markPlayed, romTile, setFavorite, type RomGame, type RomLibrary } from './games'
 import { forgetRecent, markRecent } from './prefs'
 import { fetchLocalApps, openLocalApp, type LocalApp } from './localApps'
+import { installedItchGames, ITCH_APP, itchPlay, type InstalledItchGame } from './itch'
 
 export interface TileModel {
   id: string
@@ -32,6 +33,7 @@ export interface TileModel {
   subtitle?: string
   progress?: number | null // percent watched (Plex)
   rowKey?: string // the Plex row it was picked from (for row ordering)
+  fallback?: LaunchTarget // tried when `launch` fails (itch games: the itch app)
   kind: 'service' | 'app' | 'game' | 'media'
 }
 
@@ -44,9 +46,20 @@ interface LibraryState {
   plex: PlexHome | null // null: not signed in to Plex, or not loaded yet
   roms: RomLibrary // emulated games on this TV
   local: LocalApp[] // your own apps and games (folders on the TV)
+  itch: InstalledItchGame[] // games installed by the itch app
 }
 
-let state: LibraryState = { loaded: false, flatpaks: [], games: [], installing: {}, notice: null, plex: null, roms: { systems: [], games: [] }, local: [] }
+let state: LibraryState = {
+  loaded: false,
+  flatpaks: [],
+  games: [],
+  installing: {},
+  notice: null,
+  plex: null,
+  roms: { systems: [], games: [] },
+  local: [],
+  itch: [],
+}
 const listeners = new Set<() => void>()
 let noticeTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -62,12 +75,19 @@ export function notify(message: string) {
 }
 
 export async function refreshLibrary() {
-  const [flatpaks, games, local] = await Promise.all([
+  const [flatpaks, games, local, itch] = await Promise.all([
     tv.listFlatpaks().catch(() => [] as InstalledFlatpak[]),
     tv.listSteamGames().catch(() => [] as SteamGame[]),
     fetchLocalApps(),
+    installedItchGames().catch(() => [] as InstalledItchGame[]),
   ])
-  set({ loaded: true, flatpaks, games, local })
+  set({ loaded: true, flatpaks, games, local, itch })
+}
+
+/** Games installed by the itch app (you may have installed one in it just now). */
+export async function refreshItch() {
+  const itch = await installedItchGames().catch(() => null)
+  if (itch) set({ itch })
 }
 
 /** Emulated games: on start and after an app closes (Continue playing changes). */
@@ -194,6 +214,17 @@ export async function activate(tile: TileModel) {
     // A web service opens inside the launcher's own window, in front of the cover.
     if (tile.launch.kind === 'web') removeLaunchCover(true)
   } catch (e) {
+    if (tile.fallback) {
+      // e.g. an itch game the TV can't start by itself (an older system): the itch app
+      console.warn(`${tile.title}: ${String(e)}; trying the fallback`)
+      try {
+        await tv.launch(tile.fallback, tile.title)
+        markAppOpened()
+        return
+      } catch {
+        /* reported below */
+      }
+    }
     removeLaunchCover()
     notify(`Couldn't open ${tile.title}: ${String(e)}`)
   }
@@ -277,8 +308,25 @@ function duplicateTitles(games: RomGame[]): Set<string> {
   return dups
 }
 
+/** Games installed by the itch app: started directly (no itch window), the itch app as the fallback. */
+export function itchTiles(games: InstalledItchGame[]): TileModel[] {
+  return games.map((g) => {
+    const viaApp: LaunchTarget = { kind: 'flatpak', appId: ITCH_APP, args: [itchPlay(g.id)] }
+    return {
+      id: `itch:${g.id}`,
+      title: g.title,
+      color: 'var(--tile-bg)',
+      tags: ['games' as const],
+      image: g.image ?? undefined,
+      launch: g.folder ? { kind: 'itch-game' as const, folder: g.folder } : viaApp,
+      fallback: g.folder ? viaApp : undefined,
+      kind: 'game' as const,
+    }
+  })
+}
+
 export function allTiles(s: LibraryState = state): TileModel[] {
-  return [...serviceTiles(), ...gameTiles(s.games), ...localTiles(s.local), ...appTiles(s.flatpaks), ...romTiles(s)]
+  return [...serviceTiles(), ...gameTiles(s.games), ...itchTiles(s.itch), ...localTiles(s.local), ...appTiles(s.flatpaks), ...romTiles(s)]
 }
 
 export function useLibrary(): LibraryState {
