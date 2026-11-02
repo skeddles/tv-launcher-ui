@@ -13,13 +13,14 @@ interface Prefs {
   tiles: Record<string, TileOptions> // per-tile options (Menu button on a tile)
   tileColumns: number // tiles per row (Settings > Tile size)
   background: string // page background (Settings > Background color)
+  plexRowPicks: Record<string, number> // how often you pick from each Plex row (Movies / TV Shows order)
 }
 
 const KEY = 'tvlauncher.prefs.v1'
 const listeners = new Set<() => void>()
 
 function load(): Prefs {
-  const base: Prefs = { accent: '#4F8EF7', recent: [], tiles: {}, tileColumns: 6, background: '#111316' }
+  const base: Prefs = { accent: '#4F8EF7', recent: [], tiles: {}, tileColumns: 6, background: '#111316', plexRowPicks: {} }
   try {
     const raw = localStorage.getItem(KEY)
     if (raw) return { ...base, ...JSON.parse(raw) }

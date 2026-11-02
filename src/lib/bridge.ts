@@ -119,6 +119,8 @@ export interface TvBridge {
   osUpdateStatus(): Promise<OsUpdateState>
   /** Continue watching / recently added from the Plex server; null when Plex isn't signed in. Newer shells only. */
   plexHome?(): Promise<PlexHome | null>
+  /** Read a /library/ path from the Plex server (rows on Movies / TV Shows). Newer shells only. */
+  plexGet?(path: string): Promise<unknown>
   osUpdateCheck(): Promise<OsUpdateState>
   osUpdateDownload(): Promise<OsUpdateState>
   /** A new one-time code for connecting Claude to this PC, and the connector URL to add in Claude. */
@@ -262,6 +264,41 @@ const mock: TvBridge = {
       ],
       recentlyAdded: [item(4, 'Thor: Love and Thunder', '2022', null), item(5, 'Severance', 'Season 1', null)],
     }
+  },
+  async plexGet(path: string) {
+    // Enough of a library for the browser preview
+    const item = (n: number, title: string): PlexItem & { ratingKey: string } => ({
+      ratingKey: String(n),
+      type: 'movie',
+      title,
+      subtitle: String(1990 + (n % 30)),
+      image: `https://picsum.photos/seed/${n}/640/360`,
+      progress: null,
+    })
+    if (path === '/library/sections')
+      return {
+        Directory: [
+          { key: '1', title: 'Movies', type: 'movie' },
+          { key: '2', title: 'TV Shows', type: 'show' },
+        ],
+      }
+    if (path.endsWith('/genre'))
+      return {
+        Directory: ['Comedy', 'Action', 'Animation', 'Drama', 'Horror', 'Family', 'Science Fiction', 'Documentary'].map((t, i) => ({
+          key: String(i),
+          title: t,
+        })),
+      }
+    if (path.endsWith('/decade'))
+      return {
+        Directory: [
+          { key: '1990', title: '1990s' },
+          { key: '2000', title: '2000s' },
+        ],
+      }
+    if (path.endsWith('/collections')) return { Metadata: [{ key: '/library/collections/9/children', title: 'Marvel', childCount: 12 }] }
+    const seed = [...path].reduce((a, c) => a + c.charCodeAt(0), 0)
+    return { Metadata: Array.from({ length: 12 }, (_, i) => item(seed + i, `Title ${(seed + i) % 97}`)).map((t) => ({ ...t, tile: t })) }
   },
   async osUpdateStatus() {
     return mockOs

@@ -2,6 +2,7 @@
 // Steam games, plus install progress. Module-level so it survives hot updates.
 
 import { markAppOpened } from './appfront'
+import { recordRowPick } from './plexRows'
 import { currentElement } from './focus'
 import { removeLaunchCover, showLaunchCover } from './launchCover'
 import { useSyncExternalStore } from 'react'
@@ -22,6 +23,7 @@ export interface TileModel {
   logoTone?: 'white' | 'invert'
   subtitle?: string
   progress?: number | null // percent watched (Plex)
+  rowKey?: string // the Plex row it was picked from (for row ordering)
   kind: 'service' | 'app' | 'game' | 'media'
 }
 
@@ -64,8 +66,9 @@ export async function refreshPlex() {
   set({ plex })
 }
 
-export function plexTiles(items: PlexItem[]): TileModel[] {
+export function plexTiles(items: PlexItem[], rowKey?: string): TileModel[] {
   return items.map((m) => ({
+    rowKey,
     id: `plex:${m.ratingKey}`,
     title: m.title,
     subtitle: m.subtitle,
@@ -130,6 +133,7 @@ export async function activate(tile: TileModel) {
     focused?.dataset.tileKey === tile.id ? focused : document.querySelector<HTMLElement>(`[data-tile-key="${CSS.escape(tile.id)}"]`)
   showLaunchCover(el, tile.title)
   if (tile.kind !== 'media') markRecent(tile.id) // Recently Opened is for apps
+  if (tile.rowKey) recordRowPick(tile.rowKey)
   try {
     await tv.launch(tile.launch, tile.title)
     markAppOpened()
