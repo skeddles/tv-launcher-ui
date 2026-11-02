@@ -41,12 +41,36 @@ broke" screen with a retry instead of a blank TV.
 | Controller mapping | `src/lib/input.ts` |
 | D-pad navigation | `src/lib/focus.ts` |
 | What the UI can ask the shell to do | `src/lib/bridge.ts` (implemented in `tv-os/shell/`) |
+| Emulated games: systems, emulator cores, box art | `server/systems.ts`, `server/games.ts` |
+| Games page rows, All games | `src/lib/games.ts`, `src/screens/Games.tsx`, `src/screens/AllGames.tsx` |
 
 Rail tabs: **Search** (on-screen keyboard, searches everything installed),
 **Home** (recent, streaming, games, apps), **Movies** and **TV Shows**
 (services that carry each, plus Kodi/Jellyfin if installed), **Library**
 (installed games and apps, App Store), **Settings** (accent color,
 restart/shut down, versions).
+
+## Emulated games
+
+ROMs live on the TV in `~/Games/ROMs/<system>/` (shown on the Games page) and
+`~/Games/ROMs Extra/<system>/` (only under **All games**). System folder names
+are the ids in `server/systems.ts` (`nes`, `snes`, `n64`, `gb`, `gba`, `nds`,
+`psx`, `ps2`, `gamecube`, `wii`, `megadrive`, `saturn`, `dreamcast`, …).
+Multi-file games can sit in their own subfolder; only the `.cue`/`.m3u` shows.
+
+Every system runs in **RetroArch** (Flatpak), started straight into the game
+with `-L <core> <rom>`, so there's one controller-driven settings menu for all
+of them: press **View + Menu** together in a game, or open **Emulator settings**
+on the Games page. RetroArch's setup on the TV (`~/.var/app/org.libretro.RetroArch/config/retroarch/retroarch.cfg`):
+BIOS files in `~/Games/BIOS`, saves in `~/Games/Saves/<system>/`, save states
+in `~/Games/States/<system>/`, and a save state written automatically when a game
+closes and loaded when it starts again, which is what **Continue playing** resumes.
+
+The dev server reads the folders (`/games-api/list`), records what was played
+(`~/.local/share/tvlauncher/games-played.json`) and finds box art on
+[thumbnails.libretro.com](https://thumbnails.libretro.com) by file name (the
+libretro-thumbnails project), cached in `~/.cache/tvlauncher/game-art/`. Art is
+matched best when ROMs use No-Intro names, e.g. `Super Mario World (USA).sfc`.
 
 ## Developing on another computer
 
