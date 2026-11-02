@@ -28,10 +28,12 @@ function serve(dir) {
 
 // Controller (left stick or D-pad) or keyboard (arrow keys, Enter / Space).
 const keys = new Set()
-addEventListener('keydown', (e) => keys.add(e.key))
+let tapped = false // a key tap shorter than a frame still counts
+addEventListener('keydown', (e) => { keys.add(e.key); if (e.key === 'Enter' || e.key === ' ') tapped = true })
 addEventListener('keyup', (e) => keys.delete(e.key))
 function input() {
-  let y = 0, a = keys.has('Enter') || keys.has(' ')
+  let y = 0, a = tapped || keys.has('Enter') || keys.has(' ')
+  tapped = false
   if (keys.has('ArrowUp')) y = -1
   if (keys.has('ArrowDown')) y = 1
   for (const p of navigator.getGamepads()) {
