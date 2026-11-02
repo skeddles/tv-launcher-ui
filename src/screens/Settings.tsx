@@ -8,12 +8,13 @@ import { SettingTile } from '../components/SettingTile'
 import { accents } from '../data/catalog'
 import { tv, type DisplaySettings, type OsUpdateState, type PointerSettings, type SystemInfo } from '../lib/bridge'
 import { notify } from '../lib/library'
+import { estimate, useBuildStatus, useTick } from '../lib/buildStatus'
 import { copyText } from '../lib/pointer'
 import { BACKGROUNDS, setPrefs, TILE_SIZES, usePrefs } from '../lib/prefs'
 
 type Confirm = 'reboot' | 'poweroff' | 'update' | null
 type Adjusting = 'volume' | 'appSize' | 'tileSize' | 'accent' | 'background' | 'pointerSpeed' | 'pointerSize' | null
-type Info = 'guide' | 'about' | null
+type Info = 'guide' | 'about' | 'build' | null
 
 const mbText = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)} GB` : `${Math.round(n)} MB`)
 
@@ -79,6 +80,8 @@ export function Settings() {
   const [volume, setVolume] = useState<number | null>(null)
   const [pointer, setPointer] = useState<PointerSettings | null>(null)
   const [osUpdate, setOsUpdate] = useState<OsUpdateState | null>(null)
+  const build = useBuildStatus()
+  const now = useTick()
   const [pairing, setPairing] = useState<{ code: string; url: string | null } | null>(null)
   const closePairing = useCallback(() => setPairing(null), [])
   const close = useCallback(() => setConfirm(null), [])
@@ -150,7 +153,26 @@ export function Settings() {
     setAdjusting(what)
   }
 
+  // The PC's own update (rpm-ostree) comes first; otherwise show a build in progress on GitHub.
+  const idlePhase = !osUpdate || ['unknown', 'up-to-date', 'error'].includes(osUpdate.phase)
+  const buildShown = idlePhase && build?.building
+  const buildEta = build ? estimate(build, now) : null
+
+  const updateTileValue = buildShown ? (
+    <span className="setting-tile__progress" aria-label={`Building ${buildEta?.percent ?? 0}%`}>
+      <span>Building · {buildEta?.percent ?? 0}%</span>
+      <span className="volume__bar" aria-hidden="true">
+        <span className="volume__fill" style={{ width: `${buildEta?.percent ?? 0}%` }} />
+      </span>
+    </span>
+  ) : idlePhase && build?.lastFailed && osUpdate?.phase !== 'error' ? (
+    'Build failed'
+  ) : (
+    osUpdateValue(osUpdate)
+  )
+
   const updateAction = () => {
+    if (buildShown || (idlePhase && build?.lastFailed)) return setShowInfo('build')
     const phase = osUpdate?.phase ?? 'unknown'
     if (phase === 'available') void tv.osUpdateDownload().then(setOsUpdate)
     else if (phase === 'ready') setConfirm('update')
@@ -211,7 +233,7 @@ export function Settings() {
       </Row>
 
       <Row title="System" count={7}>
-        <SettingTile id="settings:update" label="System update" value={osUpdateValue(osUpdate)} onSelect={updateAction} />
+        <SettingTile id="settings:update" label="System update" value={updateTileValue} onSelect={updateAction} />
         <SettingTile id="settings:claude" icon="link" label="Connect Claude" onSelect={connectClaude} />
         <SettingTile id="settings:about" icon="info" label="About" onSelect={() => setShowInfo('about')} />
         <SettingTile id="settings:reload" icon="reload" label="Reload launcher screen" onSelect={() => void tv.power('reload-ui')} />
@@ -295,6 +317,27 @@ export function Settings() {
             <dd>Volume (anywhere, also in the launcher)</dd>
           </dl>
         </Dialog>
+      )}
+      {showInfo === 'build' && build && (
+        <Dialog
+          title={build.building ? 'An update is being built' : 'The last update build failed'}
+          message={
+            build.building
+              ? `GitHub is building a new system image with: “${build.title}”. Started ${buildEta?.minutesIn ?? 0} min ago; about ${buildEta?.minutesLeft ?? '?'} min left (an estimate from recent builds). When it's done, check for updates here.`
+              : `GitHub couldn't build the newest system image (“${build.title}”). Your PC keeps the system it has; ask Claude to look at the build.`
+          }
+          onClose={closeInfo}
+          options={[
+            {
+              label: 'Check for updates now',
+              onSelect: () => {
+                closeInfo()
+                void tv.osUpdateCheck().then(setOsUpdate)
+              },
+            },
+            { label: 'OK', onSelect: closeInfo },
+          ]}
+        />
       )}
       {showInfo === 'about' && (
         <Dialog title="About" onClose={closeInfo} options={[{ label: 'Done', onSelect: closeInfo }]}>
