@@ -8,6 +8,7 @@ import { Tile } from '../components/Tile'
 import { emulatorSettingsTile, favoriteGames, recentlyPlayed, suggestedRows } from '../lib/games'
 import { gameTiles, refreshRoms, romTiles, useLibrary } from '../lib/library'
 import { goTo } from '../lib/place'
+import { ItchInstalledRow } from './Itch'
 import { TileRow } from './shared'
 
 /** Games started recently, the ones with a save state to resume first. */
@@ -30,7 +31,12 @@ export function FavoritesRow({ first }: { first?: boolean }) {
 const newSeed = () => Math.floor(Math.random() * 2147483646) + 1
 
 function AllGamesTile({ row }: { row: string }) {
-  return <Tile id={`${row}:all-games`} title="All games" color="var(--tile-bg)" onSelect={() => goTo('allgames')} />
+  return (
+    <>
+      <Tile id={`${row}:all-games`} title="All games" color="var(--tile-bg)" onSelect={() => goTo('allgames')} />
+      <Tile id={`${row}:itch`} title="itch.io store" color="var(--tile-bg)" onSelect={() => goTo('itch')} />
+    </>
+  )
 }
 
 export function Games() {
@@ -58,6 +64,7 @@ export function Games() {
         />
       ))}
       <TileRow first={!hasRecent && !romsLoaded} title="Steam" tiles={gameTiles(lib.games)} />
+      <ItchInstalledRow />
       {rows.slice(1).map((r) => (
         <TileRow
           key={r.key}
@@ -66,7 +73,7 @@ export function Games() {
           tiles={romTiles(lib, r.games)}
         />
       ))}
-      {romsLoaded && <TileRow title="More" tiles={[emulatorSettingsTile]} extra={<AllGamesTile row="More" />} />}
+      <TileRow title="More" tiles={romsLoaded ? [emulatorSettingsTile] : []} extra={<AllGamesTile row="More" />} />
     </>
   )
 }

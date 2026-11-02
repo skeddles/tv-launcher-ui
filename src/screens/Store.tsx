@@ -12,7 +12,7 @@ import { colorFor, controllerFriendly } from '../data/catalog'
 import { tv, type StoreApp } from '../lib/bridge'
 import { collection, STORE_ROWS } from '../lib/flathub'
 import { useLibrary } from '../lib/library'
-import { setPlace, usePlace } from '../lib/place'
+import { goTo, setPlace, usePlace } from '../lib/place'
 
 function rank(a: StoreApp) {
   if (controllerFriendly.includes(a.appId)) return 0
@@ -126,6 +126,9 @@ export function Store() {
             setTyping(true)
           }}
         />
+      </Row>
+      <Row title="Games stores" count={1}>
+        <Tile id="store:itch" title="itch.io" subtitle="Indie games for Linux with controller support" color="var(--tile-bg)" onSelect={() => goTo('itch')} />
       </Row>
       {error && <p className="muted">{error}</p>}
       {query && (

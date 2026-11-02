@@ -4,6 +4,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { defineConfig, type Plugin, type ProxyOptions } from 'vite'
 import { gamesApi } from './server/games.ts'
+import { itchApi } from './server/itch.ts'
 
 // TMDB (Netflix rows on Movies / TV Shows): the keys live only on the TV, in
 // ~/.config/tvlauncher/tmdb.json, never in this repository. This server adds
@@ -47,7 +48,7 @@ const tmdbProxy: ProxyOptions = {
 }
 
 export default defineConfig({
-  plugins: [react(), tmdbRegion(), gamesApi()],
+  plugins: [react(), tmdbRegion(), gamesApi(), itchApi()],
   // Relative asset paths so the shell can load the fallback build from disk.
   base: './',
   server: {

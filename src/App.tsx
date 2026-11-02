@@ -18,6 +18,7 @@ import { Home } from './screens/Home'
 import { Apps } from './screens/Apps'
 import { Games } from './screens/Games'
 import { AllGames } from './screens/AllGames'
+import { Itch } from './screens/Itch'
 import { Search } from './screens/Search'
 import { Settings } from './screens/Settings'
 import { Store } from './screens/Store'
@@ -36,6 +37,8 @@ function ScreenView({ screen }: { screen: Screen }) {
       return <Games />
     case 'allgames':
       return <AllGames />
+    case 'itch':
+      return <Itch />
     case 'store':
       return <Store />
     case 'settings':
@@ -53,7 +56,7 @@ function defaultBack(): boolean {
     setPlace({ screen: 'apps', focusId: null })
     return true
   }
-  if (screen === 'allgames') {
+  if (screen === 'allgames' || screen === 'itch') {
     setPlace({ screen: 'games', focusId: null })
     return true
   }

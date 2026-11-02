@@ -15,8 +15,8 @@ function RailButton({ screen, label, icon }: { screen: Screen; label: string; ic
   const id = `rail:${screen}`
   const focused = useFocused(id)
   const current = usePlace((p) => p.screen)
-  // The store lives under Apps in the rail, All games under Games.
-  const active = current === screen || (screen === 'apps' && current === 'store') || (screen === 'games' && current === 'allgames')
+  // The store lives under Apps in the rail; All games and itch.io under Games.
+  const active = current === screen || (screen === 'apps' && current === 'store') || (screen === 'games' && (current === 'allgames' || current === 'itch'))
   return (
     <button
       type="button"
