@@ -1,4 +1,4 @@
-import { useFocused } from '../lib/focus'
+import { focusContent, useFocused } from '../lib/focus'
 import { goTo, usePlace, type Screen } from '../lib/place'
 import { Icon, type IconName } from './Icon'
 
@@ -24,7 +24,16 @@ function RailButton({ screen, label, icon }: { screen: Screen; label: string; ic
       data-focus={id}
       data-focus-group="rail"
       className={`rail__button${active ? ' rail__button--active' : ''}${focused ? ' is-focused' : ''}`}
-      onClick={() => goTo(screen)}
+      onClick={() => {
+        goTo(screen)
+        // Move into the screen so the rail closes (once the screen has rendered;
+        // a screen still loading gets a few more tries).
+        let tries = 0
+        const go = () => {
+          if (!focusContent() && ++tries < 10) setTimeout(go, 100)
+        }
+        requestAnimationFrame(() => requestAnimationFrame(go))
+      }}
     >
       <Icon name={icon} />
       <span className="rail__label">{label}</span>

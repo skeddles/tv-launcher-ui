@@ -200,6 +200,21 @@ export function back() {
   }
 }
 
+/** Highlight the screen's content (not the rail): where you last were on this
+ *  screen, else its default item, else its first item. */
+export function focusContent(): boolean {
+  const root = scopeRoot()
+  const place = getPlace()
+  const remembered = byId(place.focusByScreen[place.screen] ?? null, root)
+  const el =
+    (remembered && remembered.dataset.focusGroup !== 'rail' ? remembered : null) ??
+    root.querySelector<HTMLElement>('[data-focus-default]') ??
+    focusables(root).find((e) => e.dataset.focusGroup !== 'rail')
+  if (!el) return false
+  focus(el.dataset.focus!)
+  return true
+}
+
 /** Make sure something on the current screen is highlighted. */
 export function ensureFocus() {
   const place = getPlace()
