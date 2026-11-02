@@ -1,16 +1,17 @@
-// App store: Flathub, with controller-friendly apps first.
-// Order: our allowlist (data/catalog.ts), then apps whose Flathub listing says
-// they support a gamepad, then everything else.
+// App store: Flathub. Search, then suggestion rows (the launcher's list of
+// controller-friendly apps, then Flathub collections like Popular and Games).
+// Selecting an app opens its details page; installing starts from there.
 
 import { useCallback, useEffect, useState } from 'react'
-import { Dialog } from '../components/Dialog'
+import { AppDetails } from '../components/AppDetails'
 import { Header } from '../components/Header'
 import { KeyboardOverlay } from '../components/Keyboard'
 import { Row } from '../components/Row'
 import { Tile } from '../components/Tile'
 import { colorFor, controllerFriendly } from '../data/catalog'
 import { tv, type StoreApp } from '../lib/bridge'
-import { install, uninstall, useLibrary } from '../lib/library'
+import { collection, STORE_ROWS } from '../lib/flathub'
+import { useLibrary } from '../lib/library'
 import { setPlace, usePlace } from '../lib/place'
 
 function rank(a: StoreApp) {
@@ -27,8 +28,7 @@ function StoreTiles({ row, apps, onPick, first }: { row: string; apps: StoreApp[
       {apps.map((a, i) => {
         const progress = lib.installing[a.appId]
         const isInstalled = installed.has(a.appId)
-        const badge =
-          progress != null ? 'Installing' : isInstalled ? 'Installed' : rank(a) < 2 ? 'Controller' : undefined
+        const badge = progress != null ? 'Installing' : isInstalled ? 'Installed' : rank(a) < 2 ? 'Controller' : undefined
         return (
           <Tile
             key={a.appId}
@@ -49,18 +49,31 @@ function StoreTiles({ row, apps, onPick, first }: { row: string; apps: StoreApp[
 
 export function Store() {
   const query = usePlace((p) => p.storeQuery)
-  const lib = useLibrary()
   const [typing, setTyping] = useState(false)
   const [draft, setDraft] = useState(query)
   const [featured, setFeatured] = useState<StoreApp[]>([])
   const [searched, setSearched] = useState<{ query: string; apps: StoreApp[] } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [picked, setPicked] = useState<StoreApp | null>(null)
+  const [rows, setRows] = useState<Record<string, StoreApp[]>>({})
 
   useEffect(() => {
     tv.storeDetails(controllerFriendly)
       .then(setFeatured)
       .catch(() => setError('Couldn’t reach Flathub. Check the internet connection.'))
+  }, [])
+
+  // Suggestion rows, straight from Flathub (each fills in when it arrives).
+  useEffect(() => {
+    let cancelled = false
+    for (const r of STORE_ROWS) {
+      collection(r.path)
+        .then((apps) => !cancelled && setRows((cur) => ({ ...cur, [r.title]: apps })))
+        .catch(() => {})
+    }
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const results = searched && searched.query === query ? searched.apps : null
@@ -76,8 +89,7 @@ export function Store() {
     }
   }, [query])
 
-  const installedIds = new Set(lib.flatpaks.map((f) => f.appId))
-  const onPick = (a: StoreApp) => (installedIds.has(a.appId) ? setPicked(a) : void install(a.appId, a.name))
+  const onPick = (a: StoreApp) => setPicked(a)
   const closeDialog = useCallback(() => setPicked(null), [])
   const closeKeyboard = useCallback(() => setTyping(false), [])
 
@@ -102,9 +114,16 @@ export function Store() {
           <StoreTiles row="results" apps={results ?? []} onPick={onPick} first />
         </Row>
       )}
-      <Row title="Works with a controller" count={featured.length} empty={error ? undefined : 'Loading…'}>
+      <Row carousel title="Works with a controller" count={featured.length} empty={error ? undefined : 'Loading…'}>
         <StoreTiles row="featured" apps={featured} onPick={onPick} />
       </Row>
+      {STORE_ROWS.map((r) =>
+        rows[r.title]?.length ? (
+          <Row carousel key={r.title} title={r.title} count={rows[r.title].length}>
+            <StoreTiles row={r.title} apps={rows[r.title]} onPick={onPick} />
+          </Row>
+        ) : null,
+      )}
 
       {typing && (
         <KeyboardOverlay
@@ -119,27 +138,13 @@ export function Store() {
         />
       )}
       {picked && (
-        <Dialog
-          title={picked.name}
-          message="This app is installed."
+        <AppDetails
+          key={picked.appId}
+          appId={picked.appId}
+          name={picked.name}
+          icon={picked.icon}
+          controllerPick={controllerFriendly.includes(picked.appId)}
           onClose={closeDialog}
-          options={[
-            {
-              label: 'Open',
-              onSelect: () => {
-                setPicked(null)
-                void tv.launch({ kind: 'flatpak', appId: picked.appId }, picked.name)
-              },
-            },
-            {
-              label: 'Uninstall',
-              onSelect: () => {
-                setPicked(null)
-                void uninstall(picked.appId, picked.name)
-              },
-            },
-            { label: 'Cancel', onSelect: closeDialog },
-          ]}
         />
       )}
     </>

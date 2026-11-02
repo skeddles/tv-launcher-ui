@@ -896,3 +896,102 @@ html:not(.pointer-active) * {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ---------- App details (App Store) ---------- */
+
+.app-details {
+  position: fixed;
+  inset: 0 0 0 var(--rail-width);
+  z-index: 36;
+  overflow: hidden;
+  padding: var(--main-pad-top) var(--main-pad-x);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.app-details__head {
+  display: flex;
+  gap: 36px;
+  align-items: center;
+}
+.app-details__icon {
+  width: 144px;
+  height: 144px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.app-details__name {
+  margin: 0 0 8px;
+  font-size: 44px;
+}
+.app-details__summary {
+  margin: 0 0 14px;
+  font-size: 24px;
+  color: var(--text-secondary);
+}
+.app-details__facts {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+  font-size: 19px;
+  color: var(--text-secondary);
+}
+.app-details__good {
+  color: #6fdc9b;
+}
+
+.app-details__actions {
+  display: flex;
+  gap: 20px;
+}
+.app-details__action {
+  min-width: 220px;
+  height: 64px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: var(--tile-radius);
+  background: var(--tile-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 22px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.app-details__action--primary {
+  background: var(--accent);
+  color: #ffffff;
+}
+.app-details__action.is-focused {
+  outline: var(--focus-width) solid var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.app-details__shots {
+  display: flex;
+  gap: 20px;
+  height: 300px;
+  flex-shrink: 0;
+}
+.app-details__shots img {
+  height: 100%;
+  max-width: calc((100% - 40px) / 3);
+  object-fit: contain;
+  border-radius: 10px;
+  background: var(--sunken-bg);
+}
+
+.app-details__description {
+  min-height: 0;
+  overflow: hidden;
+  font-size: 19px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 1300px;
+  mask-image: linear-gradient(to bottom, #000 75%, transparent);
+}
+.app-details__description p {
+  margin: 0 0 10px;
+}
