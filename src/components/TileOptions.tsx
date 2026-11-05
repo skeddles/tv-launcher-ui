@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
-import { deleteRom, favoriteRom, useLibrary } from '../lib/library'
+import { activate, allTiles, checkItchUpdate, deleteRom, favoriteRom, updateItchGame, useLibrary } from '../lib/library'
+import { ITCH_APP, itchPlay } from '../lib/itch'
 import { forgetRecent, usePrefs } from '../lib/prefs'
 import { closeTileMenu, setTileOptions, titleShown, useTileMenu, useTileOptions } from '../lib/tileMenu'
 import { Dialog, type DialogOption } from './Dialog'
@@ -39,6 +40,67 @@ export function TileOptionsDialog() {
   if (!menu) return null
   const shown = titleShown(options, menu.hasLogo)
   const items: DialogOption[] = []
+  // An itch game: start it, update it, or open it in the itch app
+  const itchGame = menu.key.startsWith('itch:') ? lib.itch.find((g) => `itch:${g.id}` === menu.key) : undefined
+  if (itchGame) {
+    const tile = allTiles(lib).find((t) => t.id === menu.key)
+    if (itchGame.caveId) {
+      const cave = itchGame.caveId
+      items.push(
+        itchGame.updateAvailable
+          ? {
+              label: 'Update now',
+              onSelect: () => {
+                close()
+                void updateItchGame(cave, menu.title)
+              },
+            }
+          : {
+              label: `Check for updates${itchGame.version ? ` (v${itchGame.version})` : ''}`,
+              onSelect: () => {
+                close()
+                void checkItchUpdate(itchGame.id, menu.title)
+              },
+            },
+      )
+    }
+    if (tile && itchGame.updateAvailable) {
+      items.push({
+        label: 'Play without updating',
+        onSelect: () => {
+          close()
+          void activate({ ...tile, updateAvailable: false })
+        },
+      })
+    }
+    items.push({
+      label: 'Open in the itch app',
+      onSelect: () => {
+        close()
+        void activate({
+          id: 'flatpak:io.itch.itch',
+          title: 'itch',
+          color: 'var(--tile-bg)',
+          tags: [],
+          kind: 'app',
+          launch: { kind: 'flatpak', appId: ITCH_APP, args: [itchPlay(itchGame.id)] },
+        })
+      },
+    })
+  }
+  // A Steam game: Big Picture has its updates, launch options and properties
+  if (menu.key.startsWith('steam:')) {
+    const bp = allTiles(lib).find((t) => t.id === 'steam-bigpicture')
+    if (bp) {
+      items.push({
+        label: 'Open Steam Big Picture (updates, launch options)',
+        onSelect: () => {
+          close()
+          void activate(bp)
+        },
+      })
+    }
+  }
   if (menu.key.startsWith('rom:')) {
     items.push({
       label: 'Game info',
@@ -67,12 +129,10 @@ export function TileOptionsDialog() {
       })
     }
   }
-  items.push(
-    {
-      label: `Name on tile: ${shown ? 'Shown' : 'Hidden'}`,
-      onSelect: () => setTileOptions(menu.key, { showTitle: !shown }),
-    },
-  )
+  items.push({
+    label: `Name on tile: ${shown ? 'Shown' : 'Hidden'}`,
+    onSelect: () => setTileOptions(menu.key, { showTitle: !shown }),
+  })
   if (recent.includes(menu.key)) {
     items.push({
       label: 'Remove from Recently Opened',

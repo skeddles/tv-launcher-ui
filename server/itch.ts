@@ -8,7 +8,9 @@
 //   GET /itch-api/game?url=https://author.itch.io/game             -> { id, ... }
 //   GET /itch-api/installed                                         -> games installed by the itch app
 
-import { existsSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { Plugin } from 'vite'
@@ -167,7 +169,8 @@ function latestBuild(uploadId: number, key: string): Promise<number | null> {
 }
 
 /** Games the itch app has installed (its local database; read only). */
-async function installed() {
+async function installed(fresh = false) {
+  if (fresh) latestBuilds.clear()
   const db = join(homedir(), '.var/app/io.itch.itch/config/itch/db/butler.db')
   if (!existsSync(db)) return []
   try {
@@ -177,8 +180,10 @@ async function installed() {
       const rows = conn
         .prepare(
           `SELECT g.id AS id, g.title AS title, g.cover_url AS image, g.url AS url, c.last_touched_at AS touched,
-                  c.install_folder_name AS folder, c.upload_id AS uploadId, c.build_id AS buildId
-           FROM caves c JOIN games g ON g.id = c.game_id ORDER BY c.last_touched_at DESC`,
+                  c.install_folder_name AS folder, c.upload_id AS uploadId, c.build_id AS buildId, c.id AS caveId,
+                  b.user_version AS version
+           FROM caves c JOIN games g ON g.id = c.game_id LEFT JOIN builds b ON b.id = c.build_id
+           ORDER BY c.last_touched_at DESC`,
         )
         .all() as Array<{
         id: number
@@ -189,6 +194,8 @@ async function installed() {
         folder: string | null // in ~/.var/app/io.itch.itch/config/itch/apps/ (started from there directly)
         uploadId: number | null
         buildId: number | null
+        caveId: string // the itch app's id for this install
+        version: string | null // e.g. "1.8.0" (games installed from builds)
       }>
       const profile = conn.prepare('SELECT api_key AS key FROM profiles ORDER BY last_connected DESC LIMIT 1').get() as
         { key?: string } | undefined
@@ -205,6 +212,73 @@ async function installed() {
   } catch {
     return []
   }
+}
+
+// ----- updating a game without the itch app's window (itch-butler.py) -----
+
+interface UpdateJob {
+  status: 'running' | 'done' | 'failed'
+  progress: number // 0-1
+  version: string | null // the version installed, when done
+  error: string | null
+}
+const updates = new Map<string, UpdateJob>()
+// Next to this file (Vite bundles the config, so also try from the project folder)
+const BUTLER_SCRIPT =
+  [fileURLToPath(new URL('./itch-butler.py', import.meta.url)), join(process.cwd(), 'server', 'itch-butler.py')].find((p) =>
+    existsSync(p),
+  ) ?? 'server/itch-butler.py'
+const CAVE = /^[0-9a-f-]{36}$/
+
+/** True while the itch app runs (it uses the same database as the updater). */
+function itchAppRunning(): boolean {
+  for (const pid of readdirSync('/proc')) {
+    if (!/^\d+$/.test(pid)) continue
+    try {
+      if (readFileSync(`/proc/${pid}/cgroup`, 'utf8').includes('app-flatpak-io.itch.itch-')) {
+        const cmd = readFileSync(`/proc/${pid}/cmdline`, 'latin1')
+        if (cmd.startsWith('/app/bin/itch')) return true
+      }
+    } catch {
+      /* gone */
+    }
+  }
+  return false
+}
+
+function startUpdate(cave: string): UpdateJob {
+  const running = updates.get(cave)
+  if (running?.status === 'running') return running
+  const job: UpdateJob = { status: 'running', progress: 0, version: null, error: null }
+  updates.set(cave, job)
+  if (itchAppRunning()) {
+    Object.assign(job, { status: 'failed', error: 'Close the itch app first (it would be updating the same files)' })
+    return job
+  }
+  const child = spawn('python3', ['-I', BUTLER_SCRIPT, 'update', cave], { stdio: ['ignore', 'pipe', 'pipe'] })
+  let buf = ''
+  child.stdout.setEncoding('utf8')
+  child.stdout.on('data', (chunk: string) => {
+    buf += chunk
+    let i
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, i)
+      buf = buf.slice(i + 1)
+      try {
+        const m = JSON.parse(line) as { progress?: number; done?: boolean; version?: string | null; error?: string }
+        if (m.progress != null) job.progress = m.progress
+        if (m.done) Object.assign(job, { status: 'done', progress: 1, version: m.version ?? null })
+        if (m.error) Object.assign(job, { status: 'failed', error: m.error })
+      } catch {
+        /* not ours */
+      }
+    }
+  })
+  child.on('exit', (code) => {
+    if (job.status === 'running')
+      Object.assign(job, { status: code === 0 ? 'done' : 'failed', error: code === 0 ? null : 'update stopped' })
+  })
+  return job
 }
 
 type Req = { url?: string }
@@ -231,7 +305,14 @@ async function handle(req: Req, res: Res, next: () => void) {
       return json(res, 200, await browse(sort, free, tag, page))
     }
     if (u.pathname === '/itch-api/game') return json(res, 200, await gameInfo(u.searchParams.get('url') ?? ''))
-    if (u.pathname === '/itch-api/installed') return json(res, 200, await installed())
+    if (u.pathname === '/itch-api/installed') return json(res, 200, await installed(u.searchParams.get('fresh') === '1'))
+    // Start updating (or see how it's going): ?cave=<caveId>
+    if (u.pathname === '/itch-api/update' || u.pathname === '/itch-api/update-status') {
+      const cave = u.searchParams.get('cave') ?? ''
+      if (!CAVE.test(cave)) return json(res, 400, { error: 'bad cave' })
+      if (u.pathname === '/itch-api/update') return json(res, 200, startUpdate(cave))
+      return json(res, 200, updates.get(cave) ?? null)
+    }
     return json(res, 404, { error: 'unknown' })
   } catch (e) {
     return json(res, 502, { error: String(e) })

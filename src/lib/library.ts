@@ -13,7 +13,7 @@ import { deleteRomFiles, fetchRoms, markPlayed, romTile, setFavorite, type RomGa
 import { forgetRecent, markRecent } from './prefs'
 import { fetchLocalApps, openLocalApp, type LocalApp } from './localApps'
 import { steamStates, type SteamState } from './steamState'
-import { installedItchGames, ITCH_APP, itchPlay, type InstalledItchGame } from './itch'
+import { installedItchGames, ITCH_APP, itchPlay, itchUpdateStatus, startItchUpdate, type InstalledItchGame } from './itch'
 
 export interface TileModel {
   id: string
@@ -36,6 +36,8 @@ export interface TileModel {
   rowKey?: string // the Plex row it was picked from (for row ordering)
   fallback?: LaunchTarget // tried when `launch` fails (itch games: the itch app)
   badge?: string // a label on the tile (e.g. Downloading)
+  itchCave?: string // an itch game: its install, for updating
+  updateAvailable?: boolean // an itch game with a newer version out (updated before it starts)
   notice?: string // shown when it's opened (e.g. why Steam opens instead of the game)
   kind: 'service' | 'app' | 'game' | 'media'
 }
@@ -91,9 +93,43 @@ export async function refreshLibrary() {
 }
 
 /** Games installed by the itch app (you may have installed one in it just now). */
-export async function refreshItch() {
-  const itch = await installedItchGames().catch(() => null)
+export async function refreshItch(fresh = false) {
+  const itch = await installedItchGames(fresh).catch(() => null)
   if (itch) set({ itch })
+  return itch
+}
+
+/** Update an itch game to its newest version, showing progress. True when it's up to date. */
+export async function updateItchGame(caveId: string, title: string): Promise<boolean> {
+  let job
+  try {
+    job = await startItchUpdate(caveId)
+    let shown = -1
+    while (job && job.status === 'running') {
+      const pct = Math.floor(job.progress * 100)
+      if (pct !== shown) notify(`Updating ${title}… ${pct}%`)
+      shown = pct
+      await new Promise((r) => setTimeout(r, 1000))
+      job = await itchUpdateStatus(caveId)
+    }
+  } catch (e) {
+    notify(`Couldn't update ${title}: ${String(e)}`)
+    return false
+  }
+  await refreshItch()
+  if (!job || job.status === 'failed') {
+    notify(`Couldn't update ${title}${job?.error ? `: ${job.error}` : ''}`)
+    return false
+  }
+  notify(job.version ? `${title} is updated to ${job.version}` : `${title} is up to date`)
+  return true
+}
+
+/** Ask itch.io again whether this game has a newer version. */
+export async function checkItchUpdate(gameId: number, title: string) {
+  const list = await refreshItch(true)
+  const g = list?.find((x) => x.id === gameId)
+  notify(g?.updateAvailable ? `An update for ${title} is out` : `${title} is up to date${g?.version ? ` (${g.version})` : ''}`)
 }
 
 /** Emulated games: on start and after an app closes (Continue playing changes). */
@@ -208,6 +244,9 @@ export async function activate(tile: TileModel) {
   const focused = currentElement()
   const el =
     focused?.dataset.tileKey === tile.id ? focused : document.querySelector<HTMLElement>(`[data-tile-key="${CSS.escape(tile.id)}"]`)
+  // An itch game with a newer version out: update it first (only the changes
+  // are downloaded); if that fails, start the version that's there.
+  if (tile.itchCave && tile.updateAvailable) await updateItchGame(tile.itchCave, tile.title)
   if (tile.notice) notify(tile.notice)
   showLaunchCover(el, tile.title)
   if (tile.kind !== 'media') markRecent(tile.id) // Recently Opened is for apps
@@ -344,12 +383,13 @@ export function itchTiles(games: InstalledItchGame[]): TileModel[] {
       color: 'var(--tile-bg)',
       tags: ['games' as const],
       image: g.image ?? undefined,
-      // An update is out: open the itch app, which installs it (it only updates
-      // games while it runs) and then starts the game.
-      launch: g.folder && !g.updateAvailable ? { kind: 'itch-game' as const, folder: g.folder } : viaApp,
-      fallback: g.folder && !g.updateAvailable ? viaApp : undefined,
+      launch: g.folder ? { kind: 'itch-game' as const, folder: g.folder } : viaApp,
+      fallback: g.folder ? viaApp : undefined,
+      // A newer version is out: it's installed when the game is opened (activate)
       badge: g.updateAvailable ? 'Update' : undefined,
-      notice: g.updateAvailable ? `An update for ${g.title} is out. The itch app opens to install it.` : undefined,
+      itchCave: g.caveId,
+      updateAvailable: g.updateAvailable,
+      subtitle: g.version ? `v${g.version}` : undefined,
       kind: 'game' as const,
     }
   })

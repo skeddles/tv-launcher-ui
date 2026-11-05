@@ -23,7 +23,28 @@ export interface InstalledItchGame {
   image: string | null
   url: string | null
   folder?: string | null // its folder in the itch app's apps folder
-  updateAvailable?: boolean // a newer build is out (the itch app installs it)
+  updateAvailable?: boolean // a newer build is out
+  caveId?: string // the itch app's id for this install (for updating)
+  version?: string | null // installed version, e.g. "1.8.0"
+}
+
+export interface ItchUpdate {
+  status: 'running' | 'done' | 'failed'
+  progress: number // 0-1
+  version: string | null
+  error: string | null
+}
+
+/** Start updating an installed game (the launcher's server runs the itch app's butler). */
+export async function startItchUpdate(caveId: string): Promise<ItchUpdate> {
+  const r = await fetch(`/itch-api/update?cave=${encodeURIComponent(caveId)}`, { cache: 'no-store' })
+  if (!r.ok) throw new Error(`itch update ${r.status}`)
+  return (await r.json()) as ItchUpdate
+}
+
+export async function itchUpdateStatus(caveId: string): Promise<ItchUpdate | null> {
+  const r = await fetch(`/itch-api/update-status?cave=${encodeURIComponent(caveId)}`, { cache: 'no-store' })
+  return r.ok ? ((await r.json()) as ItchUpdate | null) : null
 }
 
 export interface ItchRowDef {
@@ -135,8 +156,8 @@ export async function itchGameId(url: string): Promise<number> {
   return ((await res.json()) as { id: number }).id
 }
 
-export async function installedItchGames(): Promise<InstalledItchGame[]> {
-  const res = await fetch('/itch-api/installed').catch(() => null)
+export async function installedItchGames(fresh = false): Promise<InstalledItchGame[]> {
+  const res = await fetch(`/itch-api/installed${fresh ? '?fresh=1' : ''}`).catch(() => null)
   return res?.ok ? ((await res.json()) as InstalledItchGame[]) : []
 }
 
