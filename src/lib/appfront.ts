@@ -27,6 +27,13 @@ export function markAppOpened() {
   appOpen = true
 }
 
+/** Paused only because another window has the focus (no app was opened from
+ *  here). If the launcher is in fact showing, that window is gone and Cage
+ *  didn't give the focus back; the Xbox button fixes that. */
+export function pausedByFocusOnly(): boolean {
+  return covered && !appOpen && !localAppOpen()
+}
+
 /** The launcher itself just took the screen back (e.g. one of your own apps closed). */
 export function launcherInFront() {
   covered = false

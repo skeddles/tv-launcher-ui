@@ -5,7 +5,8 @@
 // Arrow keys, Enter and Escape/Backspace do the same for testing with a keyboard.
 
 import { back, move, select, type Direction } from './focus'
-import { controllerPaused } from './appfront'
+import { controllerPaused, pausedByFocusOnly } from './appfront'
+import { notify } from './library'
 import { goTo } from './place'
 import { openMenuForFocused } from './tileMenu'
 
@@ -20,6 +21,7 @@ function afterDraw() {
   requestAnimationFrame(() => requestAnimationFrame(() => (drawing = false)))
 }
 const STICK_THRESHOLD = 0.55
+let lastFocusHint = -Infinity
 
 export type Action = Direction | 'select' | 'back' | 'search' | 'x' | 'menu'
 
@@ -114,6 +116,12 @@ export function startInput(): () => void {
     if (controllerPaused()) {
       // An app is in front and these presses are for it. Count them as held, so
       // a button still down when the launcher comes back doesn't fire there.
+      // (If nothing is in front after all, say how to get the controller back;
+      // the hint is hidden behind any window that really is in front.)
+      if (pausedByFocusOnly() && [...pressed].some((a) => !held.has(a)) && now - lastFocusHint > 8000) {
+        lastFocusHint = now
+        notify('Press the Xbox button to use the controller here')
+      }
       for (const action of pressed) if (!held.has(action)) held.set(action, { since: now, lastFire: now })
       for (const action of [...held.keys()]) if (!pressed.has(action)) held.delete(action)
       raf = requestAnimationFrame(poll)
