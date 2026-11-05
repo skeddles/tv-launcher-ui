@@ -145,6 +145,27 @@ async function gameInfo(url: string) {
   }
 }
 
+// Whether a newer build of an installed game is out: the itch app checks this
+// when it runs, but games now start without it. Asked of itch.io with the
+// sign-in the itch app keeps (its key never leaves this server), at most every
+// 30 minutes per upload.
+const BUILD_TTL = 30 * 60_000
+const latestBuilds = new Map<number, { at: number; build: Promise<number | null> }>()
+
+function latestBuild(uploadId: number, key: string): Promise<number | null> {
+  const c = latestBuilds.get(uploadId)
+  if (c && Date.now() - c.at < BUILD_TTL) return c.build
+  const build = fetch(`https://api.itch.io/uploads/${uploadId}`, {
+    headers: { authorization: key, 'user-agent': UA },
+    signal: AbortSignal.timeout(10_000),
+  })
+    .then((r) => (r.ok ? (r.json() as Promise<{ upload?: { build_id?: number | null } }>) : null))
+    .then((d) => d?.upload?.build_id ?? null)
+    .catch(() => null)
+  latestBuilds.set(uploadId, { at: Date.now(), build })
+  return build
+}
+
 /** Games the itch app has installed (its local database; read only). */
 async function installed() {
   const db = join(homedir(), '.var/app/io.itch.itch/config/itch/db/butler.db')
@@ -156,7 +177,7 @@ async function installed() {
       const rows = conn
         .prepare(
           `SELECT g.id AS id, g.title AS title, g.cover_url AS image, g.url AS url, c.last_touched_at AS touched,
-                  c.install_folder_name AS folder
+                  c.install_folder_name AS folder, c.upload_id AS uploadId, c.build_id AS buildId
            FROM caves c JOIN games g ON g.id = c.game_id ORDER BY c.last_touched_at DESC`,
         )
         .all() as Array<{
@@ -166,8 +187,18 @@ async function installed() {
         url: string | null
         touched: string | null
         folder: string | null // in ~/.var/app/io.itch.itch/config/itch/apps/ (started from there directly)
+        uploadId: number | null
+        buildId: number | null
       }>
-      return rows
+      const profile = conn.prepare('SELECT api_key AS key FROM profiles ORDER BY last_connected DESC LIMIT 1').get() as
+        { key?: string } | undefined
+      return Promise.all(
+        rows.map(async ({ uploadId, buildId, ...g }) => {
+          // Only games installed from a build (butler/wharf) have build numbers to compare
+          const latest = profile?.key && uploadId && buildId ? await latestBuild(uploadId, profile.key) : null
+          return { ...g, updateAvailable: latest != null && buildId != null && latest !== buildId }
+        }),
+      )
     } finally {
       conn.close()
     }

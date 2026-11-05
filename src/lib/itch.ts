@@ -23,6 +23,7 @@ export interface InstalledItchGame {
   image: string | null
   url: string | null
   folder?: string | null // its folder in the itch app's apps folder
+  updateAvailable?: boolean // a newer build is out (the itch app installs it)
 }
 
 export interface ItchRowDef {

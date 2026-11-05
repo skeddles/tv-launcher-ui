@@ -344,8 +344,12 @@ export function itchTiles(games: InstalledItchGame[]): TileModel[] {
       color: 'var(--tile-bg)',
       tags: ['games' as const],
       image: g.image ?? undefined,
-      launch: g.folder ? { kind: 'itch-game' as const, folder: g.folder } : viaApp,
-      fallback: g.folder ? viaApp : undefined,
+      // An update is out: open the itch app, which installs it (it only updates
+      // games while it runs) and then starts the game.
+      launch: g.folder && !g.updateAvailable ? { kind: 'itch-game' as const, folder: g.folder } : viaApp,
+      fallback: g.folder && !g.updateAvailable ? viaApp : undefined,
+      badge: g.updateAvailable ? 'Update' : undefined,
+      notice: g.updateAvailable ? `An update for ${g.title} is out. The itch app opens to install it.` : undefined,
       kind: 'game' as const,
     }
   })
