@@ -9,6 +9,7 @@
 
 import { useSyncExternalStore } from 'react'
 import { tv } from './bridge'
+import { launcherInFront } from './appfront'
 
 export interface LocalApp {
   id: string
@@ -49,6 +50,7 @@ export function closeLocalApp() {
   open = null
   emit()
   window.focus()
+  launcherInFront()
 }
 
 /** True while one of your apps is open (the launcher leaves the controller to it). */
