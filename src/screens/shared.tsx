@@ -72,7 +72,7 @@ export function TileRow({
             genre={t.genre}
             rowGenre={rowGenre}
             rowDomain={domain}
-            badge={progress != null ? 'Installing' : missing ? 'Install' : undefined}
+            badge={progress != null ? 'Installing' : missing ? 'Install' : t.badge}
             progress={progress ?? t.progress ?? undefined}
             subtitle={t.subtitle}
             isDefault={first && i === 0}

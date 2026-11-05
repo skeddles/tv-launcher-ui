@@ -12,6 +12,7 @@ import { romShortTags } from './romTags'
 import { deleteRomFiles, fetchRoms, markPlayed, romTile, setFavorite, type RomGame, type RomLibrary } from './games'
 import { forgetRecent, markRecent } from './prefs'
 import { fetchLocalApps, openLocalApp, type LocalApp } from './localApps'
+import { steamStates, type SteamState } from './steamState'
 import { installedItchGames, ITCH_APP, itchPlay, type InstalledItchGame } from './itch'
 
 export interface TileModel {
@@ -34,6 +35,8 @@ export interface TileModel {
   progress?: number | null // percent watched (Plex)
   rowKey?: string // the Plex row it was picked from (for row ordering)
   fallback?: LaunchTarget // tried when `launch` fails (itch games: the itch app)
+  badge?: string // a label on the tile (e.g. Downloading)
+  notice?: string // shown when it's opened (e.g. why Steam opens instead of the game)
   kind: 'service' | 'app' | 'game' | 'media'
 }
 
@@ -47,6 +50,7 @@ interface LibraryState {
   roms: RomLibrary // emulated games on this TV
   local: LocalApp[] // your own apps and games (folders on the TV)
   itch: InstalledItchGame[] // games installed by the itch app
+  steamState: Record<string, SteamState> // Steam games still downloading
 }
 
 let state: LibraryState = {
@@ -59,6 +63,7 @@ let state: LibraryState = {
   roms: { systems: [], games: [] },
   local: [],
   itch: [],
+  steamState: {},
 }
 const listeners = new Set<() => void>()
 let noticeTimer: ReturnType<typeof setTimeout> | undefined
@@ -75,13 +80,14 @@ export function notify(message: string) {
 }
 
 export async function refreshLibrary() {
-  const [flatpaks, games, local, itch] = await Promise.all([
+  const [flatpaks, games, local, itch, steamState] = await Promise.all([
     tv.listFlatpaks().catch(() => [] as InstalledFlatpak[]),
     tv.listSteamGames().catch(() => [] as SteamGame[]),
     fetchLocalApps(),
     installedItchGames().catch(() => [] as InstalledItchGame[]),
+    steamStates(),
   ])
-  set({ loaded: true, flatpaks, games, local, itch })
+  set({ loaded: true, flatpaks, games, local, itch, steamState })
 }
 
 /** Games installed by the itch app (you may have installed one in it just now). */
@@ -195,6 +201,7 @@ export async function activate(tile: TileModel) {
   const focused = currentElement()
   const el =
     focused?.dataset.tileKey === tile.id ? focused : document.querySelector<HTMLElement>(`[data-tile-key="${CSS.escape(tile.id)}"]`)
+  if (tile.notice) notify(tile.notice)
   showLaunchCover(el, tile.title)
   if (tile.kind !== 'media') markRecent(tile.id) // Recently Opened is for apps
   if (tile.rowKey) recordRowPick(tile.rowKey)
@@ -251,17 +258,31 @@ export function appTiles(flatpaks: InstalledFlatpak[]): TileModel[] {
     }))
 }
 
-export function gameTiles(games: SteamGame[]): TileModel[] {
+export function gameTiles(games: SteamGame[], states: Record<string, SteamState> = state.steamState): TileModel[] {
   return [
-    ...games.map((g) => ({
-      id: `steam:${g.appId}`,
-      title: g.name,
-      color: colorFor(g.appId),
-      tags: ['games' as const],
-      image: g.image,
-      launch: { kind: 'steam' as const, appId: g.appId },
-      kind: 'game' as const,
-    })),
+    ...games.map((g): TileModel => {
+      const st = states[g.appId]
+      const tile: TileModel = {
+        id: `steam:${g.appId}`,
+        title: g.name,
+        color: colorFor(g.appId),
+        tags: ['games' as const],
+        image: g.image,
+        launch: { kind: 'steam' as const, appId: g.appId },
+        kind: 'game' as const,
+      }
+      if (st && !st.ready) {
+        // Not fully downloaded: starting it would only get Steam asking about it in
+        // a window the controller can't use. Big Picture shows the download (and
+        // Steam only downloads while it's open).
+        tile.badge = 'Downloading'
+        tile.progress = st.percent
+        tile.subtitle = st.percent != null ? `Downloading · ${st.percent}%` : 'Downloading'
+        tile.launch = { kind: 'steam-bigpicture' }
+        tile.notice = `${g.name} is still downloading${st.percent != null ? ` (${st.percent}%)` : ''}. Steam finishes it while Big Picture is open.`
+      }
+      return tile
+    }),
     { ...steamBigPicture, kind: 'game' as const },
   ]
 }
@@ -326,7 +347,14 @@ export function itchTiles(games: InstalledItchGame[]): TileModel[] {
 }
 
 export function allTiles(s: LibraryState = state): TileModel[] {
-  return [...serviceTiles(), ...gameTiles(s.games), ...itchTiles(s.itch), ...localTiles(s.local), ...appTiles(s.flatpaks), ...romTiles(s)]
+  return [
+    ...serviceTiles(),
+    ...gameTiles(s.games, s.steamState),
+    ...itchTiles(s.itch),
+    ...localTiles(s.local),
+    ...appTiles(s.flatpaks),
+    ...romTiles(s),
+  ]
 }
 
 export function useLibrary(): LibraryState {
