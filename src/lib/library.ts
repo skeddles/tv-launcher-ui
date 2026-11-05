@@ -151,6 +151,13 @@ export function startLibrary() {
   void refreshPlex()
   void refreshRoms()
   setInterval(() => void refreshPlex(), 5 * 60 * 1000)
+  // Steam downloads in the background: keep the Downloading tiles current, and
+  // let a finished game become playable without a restart.
+  setInterval(() => {
+    void steamStates().then((steamState) => {
+      if (JSON.stringify(steamState) !== JSON.stringify(state.steamState)) set({ steamState })
+    })
+  }, 60 * 1000)
   tv.onEvent((e) => {
     if (e.type === 'install-progress') set({ installing: { ...state.installing, [e.appId]: e.percent } })
     if (e.type === 'notice') notify(e.message)
@@ -272,14 +279,12 @@ export function gameTiles(games: SteamGame[], states: Record<string, SteamState>
         kind: 'game' as const,
       }
       if (st && !st.ready) {
-        // Not fully downloaded: starting it would only get Steam asking about it in
-        // a window the controller can't use. Big Picture shows the download (and
-        // Steam only downloads while it's open).
+        // Not fully downloaded: it can't start yet. Big Picture shows the download.
         tile.badge = 'Downloading'
         tile.progress = st.percent
         tile.subtitle = st.percent != null ? `Downloading · ${st.percent}%` : 'Downloading'
         tile.launch = { kind: 'steam-bigpicture' }
-        tile.notice = `${g.name} is still downloading${st.percent != null ? ` (${st.percent}%)` : ''}. Steam finishes it while Big Picture is open.`
+        tile.notice = `${g.name} is still downloading${st.percent != null ? ` (${st.percent}%)` : ''}. Big Picture shows its progress.`
       }
       return tile
     }),
