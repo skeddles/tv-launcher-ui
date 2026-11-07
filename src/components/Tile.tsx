@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useFocused } from '../lib/focus'
 import { openTileMenu, titleShown, useTileOptions } from '../lib/tileMenu'
 
@@ -51,6 +51,16 @@ export function Tile({
   const [imageFailed, setImageFailed] = useState(false)
   const [iconFailed, setIconFailed] = useState(false)
   const [logoFailed, setLogoFailed] = useState(false)
+  const [logoTry, setLogoTry] = useState(0)
+  // A logo that didn't load (no network yet at boot): try again in a while
+  useEffect(() => {
+    if (!logoFailed || logoTry >= 20) return
+    const t = window.setTimeout(() => {
+      setLogoTry((n) => n + 1)
+      setLogoFailed(false)
+    }, 30_000)
+    return () => window.clearTimeout(t)
+  }, [logoFailed, logoTry])
   const [artFailed, setArtFailed] = useState(false)
   const showArt = Boolean(art) && !artFailed
   const showLogo = (Boolean(logo) && !logoFailed) || showArt
@@ -87,7 +97,12 @@ export function Tile({
         </>
       )}
       {showLogo && !showArt && (
-        <img className={`tile__logo${logoTone ? ` tile__logo--${logoTone}` : ''}`} src={logo} alt="" onError={() => setLogoFailed(true)} />
+        <img
+          className={`tile__logo${logoTone ? ` tile__logo--${logoTone}` : ''}`}
+          src={logoTry && logo ? `${logo}${logo.includes('?') ? '&' : '?'}try=${logoTry}` : logo}
+          alt=""
+          onError={() => setLogoFailed(true)}
+        />
       )}
       {showImage && <img className="tile__image" src={image} alt="" onError={() => setImageFailed(true)} />}
       {showIcon && <img className="tile__icon" src={icon} alt="" onError={() => setIconFailed(true)} />}

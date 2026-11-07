@@ -7,6 +7,7 @@ import { gamesApi } from './server/games.ts'
 import { itchApi } from './server/itch.ts'
 import { localApps } from './server/localApps.ts'
 import { steamApi } from './server/steam.ts'
+import { logosApi } from './server/logos.ts'
 
 // TMDB (Netflix rows on Movies / TV Shows): the keys live only on the TV, in
 // ~/.config/tvlauncher/tmdb.json, never in this repository. This server adds
@@ -50,7 +51,7 @@ const tmdbProxy: ProxyOptions = {
 }
 
 export default defineConfig({
-  plugins: [react(), tmdbRegion(), gamesApi(), itchApi(), localApps(), steamApi()],
+  plugins: [react(), tmdbRegion(), gamesApi(), itchApi(), localApps(), steamApi(), logosApi()],
   // Relative asset paths so the shell can load the fallback build from disk.
   base: './',
   server: {

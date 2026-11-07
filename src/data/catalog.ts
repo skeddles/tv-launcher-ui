@@ -24,9 +24,10 @@ export interface CatalogItem {
   logoTone?: 'white' | 'invert'
 }
 
-/** A Commons file as a PNG of the given width (Commons renders SVGs). */
-export function commonsImage(file: string, width = 640): string {
-  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=${width}`
+/** A logo from Wikimedia Commons, through the launcher's server, which keeps a
+ *  copy on the TV (server/logos.ts). */
+export function commonsImage(file: string): string {
+  return `/logo?file=${encodeURIComponent(file)}`
 }
 
 // DRM services (Netflix, Disney+, Prime Video) open in Google Chrome in kiosk
